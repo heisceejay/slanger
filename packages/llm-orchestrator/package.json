@@ -1,0 +1,26 @@
+{
+  "name": "@slanger/llm-orchestrator",
+  "version": "1.0.0",
+  "description": "Slanger LLM Orchestrator — Groq API (Llama) integration with validation gate",
+  "main": "./dist/index.js",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "test": "node dist/tests/phase3.test.js",
+    "lint": "eslint src --ext .ts"
+  },
+  "dependencies": {
+    "@slanger/shared-types": "*",
+    "@slanger/phonology": "*",
+    "@slanger/morphology": "*",
+    "@slanger/syntax": "*",
+    "@slanger/lexicon": "*",
+    "@slanger/validation": "*",
+    "ioredis": "^5.3.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "typescript": "^5.4.0"
+  }
+}

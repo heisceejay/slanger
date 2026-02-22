@@ -1,0 +1,22 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "./src",
+    "outDir": "./dist",
+    "module": "Node16",
+    "moduleResolution": "Node16",
+    "composite": true,
+    "lib": ["ES2022", "dom"]
+  },
+  "include": ["src"],
+  "exclude": ["node_modules", "dist", "src/db"],
+  "references": [
+    {"path": "../shared-types"},
+    {"path": "../phonology"},
+    {"path": "../morphology"},
+    {"path": "../syntax"},
+    {"path": "../lexicon"},
+    {"path": "../validation"},
+    {"path": "../llm-orchestrator"}
+  ]
+}

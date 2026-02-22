@@ -1,0 +1,64 @@
+# Slanger API Gateway — Fly.io deployment manifest
+# Deploy: flyctl deploy --config fly.toml
+
+app = "slanger-api"
+primary_region = "iad"   # Change to your nearest region
+kill_signal = "SIGTERM"
+kill_timeout = "30s"
+
+[build]
+  dockerfile = "docker/Dockerfile.api-gateway"
+
+[env]
+  NODE_ENV    = "production"
+  PORT        = "3001"
+  HOST        = "0.0.0.0"
+  GEMINI_MODEL = "gemini-2.0-flash"
+
+[[services]]
+  protocol      = "tcp"
+  internal_port = 3001
+  auto_stop_machines  = true
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [[services.ports]]
+    port = 80
+    handlers = ["http"]
+    force_https = true
+
+  [[services.ports]]
+    port = 443
+    handlers = ["tls", "http"]
+
+  [services.concurrency]
+    type       = "requests"
+    hard_limit = 250
+    soft_limit = 200
+
+  [[services.http_checks]]
+    interval     = "30s"
+    timeout      = "10s"
+    grace_period = "20s"
+    method       = "GET"
+    path         = "/health"
+    protocol     = "http"
+
+  [[services.http_checks]]
+    interval     = "60s"
+    timeout      = "10s"
+    grace_period = "30s"
+    method       = "GET"
+    path         = "/health/ready"
+    protocol     = "http"
+
+[[vm]]
+  cpu_kind  = "shared"
+  cpus      = 1
+  memory_mb = 512
+
+# ── Required secrets ────────────────────────────────────────────────────────────
+# flyctl secrets set GEMINI_API_KEY="AIza..."
+#
+# Optional (enables Redis-backed rate limiting):
+# flyctl secrets set REDIS_URL="redis://..."
