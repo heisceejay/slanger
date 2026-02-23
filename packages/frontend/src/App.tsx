@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from "react";
-import type { Language } from "./lib/api";
-import { listLanguages, deleteLanguage } from "./lib/api";
+import type { Language, VersionSnapshot } from "./lib/api";
+import { listLanguages, deleteLanguage, rollbackToVersion } from "./lib/api";
 import { exportPdf, exportJson } from "./lib/export-pdf";
 import { Dashboard } from "./views/Dashboard";
 import { PhonologyView } from "./views/Phonology";
@@ -103,7 +103,7 @@ export default function App() {
                   {versionHistory.length === 0 ? (
                     <div style={{ padding: 12, fontSize: 11, opacity: 0.6 }}>No snapshots yet. Run an AI step to save history.</div>
                   ) : (
-                    versionHistory.map((entry, i) => (
+                    versionHistory.map((entry: VersionSnapshot, i: number) => (
                       <div
                         key={i}
                         style={{
@@ -220,12 +220,12 @@ export default function App() {
             <div className="nav-label">Editor</div>
             {(
               [
-                { id: "dashboard",  icon: "◈", label: "Overview" },
-                { id: "phonology",  icon: "ʃ", label: "Phonology" },
+                { id: "dashboard", icon: "◈", label: "Overview" },
+                { id: "phonology", icon: "ʃ", label: "Phonology" },
                 { id: "morphology", icon: "∞", label: "Morphology" },
-                { id: "syntax",     icon: "⊢", label: "Syntax" },
-                { id: "lexicon",    icon: "≋", label: "Lexicon",  count: activeLang?.lexicon.length },
-                { id: "corpus",     icon: "§", label: "Corpus",   count: activeLang?.corpus.length },
+                { id: "syntax", icon: "⊢", label: "Syntax" },
+                { id: "lexicon", icon: "≋", label: "Lexicon", count: activeLang?.lexicon.length },
+                { id: "corpus", icon: "§", label: "Corpus", count: activeLang?.corpus.length },
               ] as Array<{ id: View; icon: string; label: string; count?: number }>
             ).map(({ id, icon, label, count }) => (
               <button
@@ -289,13 +289,13 @@ export default function App() {
           />
         ) : activeLang ? (
           <>
-            {view === "dashboard"  && <Dashboard    lang={activeLang} onRefresh={reload}       onNavigate={setView} />}
-            {view === "phonology"  && <PhonologyView  lang={activeLang} onUpdated={refreshLang} />}
+            {view === "dashboard" && <Dashboard lang={activeLang} onRefresh={reload} onNavigate={setView} />}
+            {view === "phonology" && <PhonologyView lang={activeLang} onUpdated={refreshLang} />}
             {view === "morphology" && <MorphologyView lang={activeLang} onUpdated={refreshLang} />}
-            {view === "syntax"     && <SyntaxView     lang={activeLang} onUpdated={refreshLang} />}
-            {view === "lexicon"    && <LexiconView    lang={activeLang} onUpdated={refreshLang} />}
-            {view === "corpus"     && <CorpusView     lang={activeLang} onUpdated={refreshLang} />}
-            {view === "generate"   && <GenerateView   lang={activeLang} onUpdated={refreshLang} />}
+            {view === "syntax" && <SyntaxView lang={activeLang} onUpdated={refreshLang} />}
+            {view === "lexicon" && <LexiconView lang={activeLang} onUpdated={refreshLang} />}
+            {view === "corpus" && <CorpusView lang={activeLang} onUpdated={refreshLang} />}
+            {view === "generate" && <GenerateView lang={activeLang} onUpdated={refreshLang} />}
           </>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", gap: 12 }}>

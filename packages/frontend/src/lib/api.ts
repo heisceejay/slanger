@@ -1,3 +1,4 @@
+/// <reference types="vite/client" />
 /**
  * Slanger API client
  *
@@ -28,6 +29,12 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+export interface VersionSnapshot {
+  label: string;
+  timestamp: string;
+  snapshot: Language;
+}
+
 export interface LanguageMeta {
   id: string;
   name: string;
@@ -39,6 +46,7 @@ export interface LanguageMeta {
   createdAt: string;
   updatedAt: string;
   authorId?: string;
+  versionHistory?: VersionSnapshot[];
 }
 
 export interface PhonologyConfig {
@@ -195,7 +203,7 @@ export function createLanguage(input: {
       phraseStructure: {
         NP: [{ label: "Det", optional: true, repeatable: false }, { label: "N", optional: false, repeatable: false }],
         VP: [{ label: "V", optional: false, repeatable: false }, { label: "NP", optional: true, repeatable: false }],
-        S:  [{ label: "NP", optional: false, repeatable: false }, { label: "VP", optional: false, repeatable: false }],
+        S: [{ label: "NP", optional: false, repeatable: false }, { label: "VP", optional: false, repeatable: false }],
       },
       clauseTypes: ["declarative", "polar-interrogative", "imperative"],
       headedness: "dependent-marking",
