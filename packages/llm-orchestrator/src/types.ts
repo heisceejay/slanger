@@ -14,8 +14,6 @@ import type { ValidationResult } from "@slanger/validation";
 
 export type OperationName =
   | "suggest_phoneme_inventory"
-  | "suggest_morphology"
-  | "suggest_syntax"
   | "fill_paradigm_gaps"
   | "generate_lexicon"
   | "generate_corpus"
@@ -88,36 +86,6 @@ export interface SuggestInventoryResponse {
   rationale: string;
 }
 
-// ─── Op 1.5: suggest_morphology ──────────────────────────────────────────────
-
-export interface SuggestMorphologyRequest {
-  languageId: string;
-  phonology: PhonologyConfig;
-  world?: string;
-  naturalismScore: number;
-  tags: string[];
-}
-
-export interface SuggestMorphologyResponse {
-  morphology: MorphologyConfig;
-  rationale: string;
-}
-
-// ─── Op 1.7: suggest_syntax ─────────────────────────────────────────────────
-
-export interface SuggestSyntaxRequest {
-  languageId: string;
-  phonology: PhonologyConfig;
-  morphology: MorphologyConfig;
-  world?: string;
-  naturalismScore: number;
-  tags: string[];
-}
-
-export interface SuggestSyntaxResponse {
-  syntax: SyntaxConfig;
-  rationale: string;
-}
 
 // ─── Op 2: fill_paradigm_gaps ────────────────────────────────────────────────
 
@@ -277,8 +245,6 @@ export interface CacheConfig {
 
 export const CACHE_TTLS: Record<OperationName, number> = {
   suggest_phoneme_inventory: 60 * 60 * 24 * 7,   // 7 days
-  suggest_morphology: 60 * 60 * 24 * 7,          // 7 days
-  suggest_syntax: 60 * 60 * 24 * 7,              // 7 days
   fill_paradigm_gaps: 60 * 60 * 24 * 7,   // 7 days
   generate_lexicon: 60 * 60 * 24 * 7,   // 7 days
   generate_corpus: 60 * 60 * 24,        // 1 day (more volatile)

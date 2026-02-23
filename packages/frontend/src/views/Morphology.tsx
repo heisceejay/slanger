@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import type { Language } from "../lib/api";
-import { fillParadigms, suggestMorphology, updateLanguage } from "../lib/api";
+import { fillParadigms, updateLanguage } from "../lib/api";
 
 const TYPOLOGIES = ["analytic", "agglutinative", "fusional", "polysynthetic", "mixed"] as const;
 const CATEGORY_OPTIONS = [
@@ -60,7 +60,6 @@ export function MorphologyView({
 }) {
   const morph = lang.morphology;
   const [filling, setFilling] = useState(false);
-  const [rationale, setRationale] = useState("");
   const [error, setError] = useState("");
   const [selectedParadigm, setSelectedParadigm] = useState<string | null>(
     Object.keys(morph.paradigms)[0] ?? null
@@ -80,11 +79,9 @@ export function MorphologyView({
   async function handleFill() {
     setFilling(true);
     setError("");
-    setRationale("");
     try {
-      const { language, rationale: r } = await fillParadigms(lang);
+      const { language } = await fillParadigms(lang);
       onUpdated(language);
-      setRationale(r);
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -92,24 +89,6 @@ export function MorphologyView({
     }
   }
 
-  const [suggesting, setSuggesting] = useState(false);
-  async function handleSuggest() {
-    setSuggesting(true);
-    setError("");
-    setRationale("");
-    try {
-      const { language, rationale: r } = await suggestMorphology(lang);
-      onUpdated(language);
-      setRationale(r);
-      // Select the first paradigm if any were generated
-      const firstParadigm = Object.keys(language.morphology.paradigms)[0];
-      if (firstParadigm) setSelectedParadigm(firstParadigm);
-    } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      setSuggesting(false);
-    }
-  }
 
   // ─── Coverage: per-POS categories defined vs empty ─────────────────────────
   const posWithEntries = new Set(lang.lexicon.map((e) => e.pos));
@@ -219,15 +198,6 @@ export function MorphologyView({
         <h1 className="view-title">Morphology</h1>
         <span className="view-subtitle">{morph.typology} system</span>
         <div style={{ marginLeft: "auto", display: "flex", gap: 10 }}>
-          <button
-            className="btn"
-            onClick={handleSuggest}
-            disabled={suggesting || filling || !hasPhonology}
-            title="AI Suggest typology and categories"
-          >
-            {suggesting ? <span className="spinner" /> : "✧"}
-            Suggest Morphology
-          </button>
           <select
             value={morph.typology}
             onChange={(e) => handleMorphChange({ typology: e.target.value as MorphologyConfig["typology"] })}
@@ -246,7 +216,7 @@ export function MorphologyView({
               <option key={t} value={t}>{t}</option>
             ))}
           </select>
-          <button className="btn" onClick={handleFill} disabled={filling || suggesting || !hasPhonology}>
+          <button className="btn" onClick={handleFill} disabled={filling || !hasPhonology}>
             {filling ? <span className="spinner" /> : "⊛"}
             AI Fill Paradigms
           </button>
@@ -270,14 +240,6 @@ export function MorphologyView({
           </div>
         ) : (
           <>
-            {rationale && (
-              <div className="panel mb16">
-                <div className="panel-body">
-                  <div className="muted small mb8" style={{ letterSpacing: "0.1em", textTransform: "uppercase" }}>AI Rationale</div>
-                  <div style={{ fontSize: 12, lineHeight: 1.7, opacity: 0.8 }}>{rationale}</div>
-                </div>
-              </div>
-            )}
 
             {/* Coverage indicator */}
             <div className="panel mb16">

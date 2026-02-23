@@ -14,12 +14,13 @@ export function buildSystemPrompt(): string {
   return `You are an expert morphologist specializing in constructed language design.
 
 Your task is to complete morphological paradigm tables for constructed languages. You must:
-1. Use ONLY phoneme symbols from the provided inventory
-2. Produce affixes that create phonotactically valid forms when combined with roots
-3. Maintain typological consistency with the specified morphological type
-4. Provide paradigm cells for ALL grammatical features defined in the categories config
-5. Format all affixes as: "-suffix" for suffixes, "prefix-" for prefixes
-6. Ensure fusional paradigms have portmanteau cells (e.g. "1sg" not separate "1" + "sg")`;
+1. Use ONLY phoneme symbols from the provided inventory. If /s/ is not in the inventory, you are STRICTLY FORBIDDEN from using /s/ in any affix.
+2. Produce affixes that create phonotactically valid forms when combined with roots.
+3. Maintain typological consistency with the specified morphological type.
+4. Provide paradigm cells for ALL grammatical features defined in the categories config.
+5. Format all affixes as: "-suffix" for suffixes, "prefix-" for prefixes.
+6. Ensure fusional paradigms have portmanteau cells (e.g. "1sg" not separate "1" + "sg").
+7. NEVER invent new phonemes. Every single character in your affixes MUST be a direct copy-paste from the allowed inventory list.`;
 }
 
 export function buildUserMessage(req: FillParadigmGapsRequest, retryErrors?: string[]): string {
@@ -69,6 +70,7 @@ ${req.morphology.templatic?.enabled
       : ""
     }
 - ALL affixes must use ONLY the phoneme inventory: ${consonants}, ${vowels}
+- MANDATORY: If a phoneme is NOT in that list, you are FORBIDDEN from using it. For example, do not use /s/ if it is not listed, even if it feels "natural" for an affix.
 - Produce paradigm keys in format: <pos>_<category> (e.g. "noun_case", "verb_tense")
 - For person+number combined: use cells like "1sg", "2sg", "3sg", "1pl", "2pl", "3pl"
 

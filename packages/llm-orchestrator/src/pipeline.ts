@@ -21,8 +21,6 @@ import type { StreamEvent, AutonomousPipelineRequest, AutonomousPipelineResult }
 import { CORE_VOCABULARY_SLOTS, generateCoverageReport } from "@slanger/lexicon";
 import {
   suggestPhonemeInventory,
-  suggestMorphology,
-  suggestSyntax,
   fillParadigmGaps,
   generateLexicon,
   generateCorpus,
@@ -38,7 +36,7 @@ export async function runAutonomousPipeline(
   onEvent: (event: StreamEvent) => void
 ): Promise<AutonomousPipelineResult> {
   const pipelineStart = Date.now();
-  const TOTAL_STEPS = 6;
+  const TOTAL_STEPS = 5;
 
   // ── Build the initial skeleton language ─────────────────────────────────────
   const now = new Date().toISOString();
@@ -76,27 +74,19 @@ export async function runAutonomousPipeline(
     }
 
     // ── Step 2: Morphology ─────────────────────────────────────────────────────
-    onEvent({ type: "pipeline_progress", step: 2, totalSteps: TOTAL_STEPS, stepName: "Designing morphology profile" });
+    onEvent({ type: "pipeline_progress", step: 2, totalSteps: TOTAL_STEPS, stepName: "Building morphological paradigms" });
 
-    const morphSuggestResult = await suggestMorphology({
-      languageId: language.meta.id,
-      phonology: language.phonology,
-      naturalismScore: req.naturalismScore,
-      tags: req.tags,
-      ...(req.world ? { world: req.world } : {}),
-    }, language);
-
-    language = { ...language, morphology: morphSuggestResult.data.morphology };
-    onEvent({ type: "operation_complete", result: morphSuggestResult });
-
-    onEvent({ type: "pipeline_progress", step: 3, totalSteps: TOTAL_STEPS, stepName: "Filling morphological paradigms" });
-
-    // Derive target paradigms from complexity scalar
+    // Derive target paradigms and categories from complexity/naturalism heuristics
     const targetParadigms = deriveTargetParadigms(req.complexity);
+    const morphCategories = deriveMorphCategories(req.complexity, req.naturalismScore);
 
     const morphResult = await fillParadigmGaps({
       languageId: language.meta.id,
-      morphology: language.morphology,
+      morphology: {
+        ...language.morphology,
+        categories: morphCategories,
+        morphemeOrder: ["root", "aspect", "tense", "person.number"],
+      },
       phonology: language.phonology,
       targetParadigms,
     }, language);
@@ -104,23 +94,8 @@ export async function runAutonomousPipeline(
     language = { ...language, morphology: morphResult.data.morphology };
     onEvent({ type: "operation_complete", result: morphResult });
 
-    // ── Step 3: Syntax ─────────────────────────────────────────────────────────
-    onEvent({ type: "pipeline_progress", step: 4, totalSteps: TOTAL_STEPS, stepName: "Designing syntactic system" });
-
-    const syntaxResult = await suggestSyntax({
-      languageId: language.meta.id,
-      phonology: language.phonology,
-      morphology: language.morphology,
-      naturalismScore: req.naturalismScore,
-      tags: req.tags,
-      ...(req.world ? { world: req.world } : {}),
-    }, language);
-
-    language = { ...language, syntax: syntaxResult.data.syntax };
-    onEvent({ type: "operation_complete", result: syntaxResult });
-
-    // ── Step 4: Lexicon (batched) ──────────────────────────────────────────────
-    onEvent({ type: "pipeline_progress", step: 5, totalSteps: TOTAL_STEPS, stepName: `Generating vocabulary (target: ${TARGET_LEXICON_SIZE} words)` });
+    // ── Step 3: Lexicon (batched) ──────────────────────────────────────────────
+    onEvent({ type: "pipeline_progress", step: 3, totalSteps: TOTAL_STEPS, stepName: `Generating vocabulary (target: ${TARGET_LEXICON_SIZE} words)` });
 
     let lexiconDone = false;
     let batchNum = 0;
@@ -166,7 +141,7 @@ export async function runAutonomousPipeline(
     let corpusRan = false;
     if (language.lexicon.length >= 50) {
       corpusRan = true;
-      onEvent({ type: "pipeline_progress", step: 6, totalSteps: TOTAL_STEPS, stepName: "Generating corpus samples" });
+      onEvent({ type: "pipeline_progress", step: 4, totalSteps: TOTAL_STEPS, stepName: "Generating corpus samples" });
 
       const corpusResult = await generateCorpus({
         languageId: language.meta.id,

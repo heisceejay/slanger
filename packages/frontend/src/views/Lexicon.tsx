@@ -93,7 +93,7 @@ export function LexiconView({
 
   const coveragePct = Math.round((entries.length / 500) * 100);
   const hasPhonology = (lang.phonology?.inventory?.consonants?.length ?? 0) > 0 && (lang.phonology?.inventory?.vowels?.length ?? 0) > 0;
-  const hasMorphology = !!lang.morphology?.typology;
+  const hasMorphology = Object.values(lang.morphology?.categories ?? {}).some(c => c.length > 0) || Object.keys(lang.morphology?.paradigms ?? {}).length > 0;
   const canGenerateLexicon = hasPhonology && hasMorphology;
 
   return (
@@ -127,7 +127,7 @@ export function LexiconView({
               {!hasMorphology && (
                 <div style={{ padding: 12, border: "1px solid var(--rule)", borderRadius: 8, background: "rgba(255,255,255,0.05)" }}>
                   <div className="small mb8">Morphology Required</div>
-                  <span className="muted small">Define typology and categories.</span>
+                  <span className="muted small">Define categories or fill paradigms first.</span>
                 </div>
               )}
             </div>

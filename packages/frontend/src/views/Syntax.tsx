@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from "react";
 import type { Language } from "../lib/api";
-import { updateLanguage, suggestSyntax } from "../lib/api";
+import { updateLanguage } from "../lib/api";
 import type { SyntaxConfig, PhraseStructureSlot } from "@slanger/shared-types";
 
 // ... existing constants ...
@@ -58,9 +58,6 @@ export function SyntaxView({
   const [draggedItem, setDraggedItem] = useState<{ phraseType: string; slotIndex: number } | null>(null);
   const [addingPhraseType, setAddingPhraseType] = useState(false);
   const [newPhraseTypeLabel, setNewPhraseTypeLabel] = useState("");
-  const [suggesting, setSuggesting] = useState(false);
-  const [rationale, setRationale] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
 
   // Sync upward when local editable structure changes
   useEffect(() => {
@@ -132,20 +129,6 @@ export function SyntaxView({
     [lang.meta.id, syn, onUpdated, editingStructure]
   );
 
-  const handleSuggest = async () => {
-    setSuggesting(true);
-    setError(null);
-    try {
-      const res = await suggestSyntax(lang);
-      setRationale(res.rationale);
-      setEditingStructure(res.language.syntax.phraseStructure);
-      onUpdated(res.language);
-    } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      setSuggesting(false);
-    }
-  };
 
   const wordOrderParts = syn.wordOrder === "free"
     ? ["Free", "Word", "Order"]
@@ -167,31 +150,19 @@ export function SyntaxView({
   };
 
   const hasPhonology = (lang.phonology?.inventory?.consonants?.length ?? 0) > 0 && (lang.phonology?.inventory?.vowels?.length ?? 0) > 0;
-  const hasMorphology = !!lang.morphology?.typology;
-  const canSuggestSyntax = hasPhonology && hasMorphology;
+  const hasMorphology = Object.values(lang.morphology?.categories ?? {}).some(c => c.length > 0) || Object.keys(lang.morphology?.paradigms ?? {}).length > 0;
+  const canEditSyntax = hasPhonology && hasMorphology;
 
   return (
     <>
       <div className="view-header">
         <h1 className="view-title">Syntax</h1>
         <span className="view-subtitle">{syn.wordOrder} · {syn.alignment}</span>
-        <div style={{ marginLeft: "auto", display: "flex", gap: 10 }}>
-          <button
-            className="btn"
-            onClick={handleSuggest}
-            disabled={suggesting || !canSuggestSyntax}
-            title="AI Suggest word order and alignment"
-          >
-            {suggesting ? <span className="spinner" /> : "✧"}
-            Suggest Syntax
-          </button>
-        </div>
       </div>
 
       <div className="view-body">
-        {error && <div style={{ color: "var(--error)", fontSize: 11, marginBottom: 16 }}>{error}</div>}
 
-        {!canSuggestSyntax ? (
+        {!canEditSyntax ? (
           <div className="panel" style={{ padding: 40, textAlign: "center", borderStyle: "dashed", opacity: 0.8 }}>
             <div className="muted mb16" style={{ fontSize: 12 }}>
               Syntax definition is locked until you define your language's basic profile.
@@ -206,21 +177,13 @@ export function SyntaxView({
               {!hasMorphology && (
                 <div style={{ padding: 12, border: "1px solid var(--rule)", borderRadius: 8, background: "rgba(255,255,255,0.05)" }}>
                   <div className="small mb8">Morphology Required</div>
-                  <span className="muted small">Define typology and categories first.</span>
+                  <span className="muted small">Define categories or fill paradigms first.</span>
                 </div>
               )}
             </div>
           </div>
         ) : (
           <>
-            {rationale && (
-              <div className="panel mb16">
-                <div className="panel-body">
-                  <div className="muted small mb8" style={{ letterSpacing: "0.1em", textTransform: "uppercase" }}>AI Rationale</div>
-                  <div style={{ fontSize: 12, lineHeight: 1.7, opacity: 0.8 }}>{rationale}</div>
-                </div>
-              </div>
-            )}
             <div className="grid-2 fade-up">
               {/* Word order — editable */}
               <div className="panel">

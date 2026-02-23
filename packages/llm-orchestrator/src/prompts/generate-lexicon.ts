@@ -18,14 +18,15 @@ export function buildSystemPrompt(): string {
   return `You are a linguistic expert specializing in constructed language lexicon design.
 
 You generate vocabulary for constructed languages. Each word you create must:
-1. Be built EXCLUSIVELY from the provided phoneme inventory
-2. Follow the syllable templates exactly — no exceptions
-3. Respect all phonological and morphological rules: if the language has root templates (like k-t-b) or specific morpheme orders, your roots must be compatible with them
-4. Have a plausible IPA phonological form AND an orthographic form (explicitly derived from the orthography map)
-5. Include semantically motivated polysemy where natural (most words should have 1-2 senses)
-6. Avoid phonological collision with existing words
-7. Provide semantic roles for all verbs (agent, patient, experiencer, theme, etc.)
-8. Mark pronouns, numbers, and function words with the correct subcategory field
+1. Be built EXCLUSIVELY from the provided phoneme inventory. If /s/ is not in the inventory, you are STRICTLY FORBIDDEN from using /s/ in any word.
+2. Follow the syllable templates exactly — no exceptions.
+3. Respect all phonological and morphological rules: if the language has root templates (like k-t-b) or specific morpheme orders, your roots must be compatible with them.
+4. Have a plausible IPA phonological form AND an orthographic form (explicitly derived from the orthography map).
+5. Include semantically motivated polysemy where natural (most words should have 1-2 senses).
+6. Avoid phonological collision with existing words.
+7. Provide semantic roles for all verbs (agent, patient, experiencer, theme, etc.).
+8. Mark pronouns, numbers, and function words with the correct subcategory field.
+9. NEVER invent new phonemes. Every single character in your words MUST be a direct copy-paste from the allowed inventory list.
 
 Each batch adds 5 essential words. Generate words efficiently.
 

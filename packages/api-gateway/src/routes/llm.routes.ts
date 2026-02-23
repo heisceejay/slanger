@@ -18,8 +18,6 @@ import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
 import {
   suggestPhonemeInventory,
-  suggestMorphology,
-  suggestSyntax,
   fillParadigmGaps,
   generateLexicon,
   generateCorpus,
@@ -110,50 +108,6 @@ export async function llmRoutes(fastify: FastifyInstance): Promise<void> {
     return reply.send(ok({ language: updated, rationale: result.data.rationale, fromCache: result.fromCache }, req.id));
   });
 
-  // ── Op 1.5: Suggest morphology ─────────────────────────────────────────────
-
-  fastify.post("/v1/suggest-morphology", { config: { rateLimit: LLM_RATE } }, async (req, reply) => {
-    const parsed = LangBodySchema.safeParse(req.body);
-    if (!parsed.success) return reply.code(400).send(badRequest(parsed.error.issues[0]?.message ?? "Invalid body", req.id));
-    const lang = parsed.data as unknown as LanguageDefinition;
-
-    const result = await suggestMorphology({
-      languageId: lang.meta.id,
-      phonology: lang.phonology as any,
-      naturalismScore: lang.meta.naturalismScore,
-      tags: lang.meta.tags,
-      ...(lang.meta.world !== undefined ? { world: lang.meta.world } : {}),
-    }, lang);
-
-    const updated: LanguageDefinition = {
-      ...lang,
-      morphology: result.data.morphology,
-    };
-    return reply.send(ok({ language: updated, rationale: result.data.rationale, fromCache: result.fromCache }, req.id));
-  });
-
-  // ── Op 1.7: Suggest syntax ─────────────────────────────────────────────────
-
-  fastify.post("/v1/suggest-syntax", { config: { rateLimit: LLM_RATE } }, async (req, reply) => {
-    const parsed = LangBodySchema.safeParse(req.body);
-    if (!parsed.success) return reply.code(400).send(badRequest(parsed.error.issues[0]?.message ?? "Invalid body", req.id));
-    const lang = parsed.data as unknown as LanguageDefinition;
-
-    const result = await suggestSyntax({
-      languageId: lang.meta.id,
-      phonology: lang.phonology as any,
-      morphology: lang.morphology as any,
-      naturalismScore: lang.meta.naturalismScore,
-      tags: lang.meta.tags,
-      ...(lang.meta.world !== undefined ? { world: lang.meta.world } : {}),
-    }, lang);
-
-    const updated: LanguageDefinition = {
-      ...lang,
-      syntax: result.data.syntax,
-    };
-    return reply.send(ok({ language: updated, rationale: result.data.rationale, fromCache: result.fromCache }, req.id));
-  });
 
   // ── Op 2: Fill paradigm gaps ────────────────────────────────────────────────
 
@@ -185,10 +139,10 @@ export async function llmRoutes(fastify: FastifyInstance): Promise<void> {
       const lang = parsed.data as unknown as LanguageDefinition;
 
       const hasPhonology = (lang.phonology?.inventory?.consonants?.length ?? 0) > 0 && (lang.phonology?.inventory?.vowels?.length ?? 0) > 0;
-      const hasMorphology = !!lang.morphology?.typology;
+      const hasMorphology = Object.values(lang.morphology?.categories ?? {}).some(c => c.length > 0) || Object.keys(lang.morphology?.paradigms ?? {}).length > 0;
       if (!hasPhonology || !hasMorphology) {
         return reply.code(400).send(badRequest(
-          "Generate phonology (Suggest phoneme inventory) and morphology (Fill paradigm gaps) before generating lexicon.",
+          "Generate phonology (Suggest phoneme inventory) and morphology (Define and Fill paradigm gaps) before generating lexicon.",
           req.id
         ));
       }
