@@ -11,11 +11,17 @@ const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
 const BASE = `${API_BASE}/v1`;
 
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, {
-    method,
-    headers: { "Content-Type": "application/json" },
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${BASE}${path}`, {
+      method,
+      headers: { "Content-Type": "application/json" },
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+    });
+  } catch (err) {
+    console.error(`[Slanger API] Network/CORS error on ${method} ${path}:`, err);
+    throw new Error(`Network error: ${(err as Error).message}`);
+  }
   if (!res.ok) {
     let msg = `HTTP ${res.status}`;
     try {
