@@ -157,8 +157,15 @@ export async function llmRoutes(fastify: FastifyInstance): Promise<void> {
 
       const result = await generateLexicon({
         languageId: lang.meta.id,
-        phonology: lang.phonology,
-        morphology: lang.morphology,
+        // Strip SVG glyph data from phonology — only inventory + orthography + phonotactics needed
+        phonology: {
+          ...lang.phonology,
+          ...(lang.phonology.writingSystem
+            ? { writingSystem: { ...lang.phonology.writingSystem, glyphs: {} } }
+            : {}),
+        } as LanguageDefinition["phonology"],
+        // Strip full paradigm detail — only typology + categories needed for lexicon generation
+        morphology: { ...lang.morphology, paradigms: {} },
         targetSlots: targetSlots.map((s) => ({
           slot: s.slot,
           pos: s.pos,
@@ -166,7 +173,8 @@ export async function llmRoutes(fastify: FastifyInstance): Promise<void> {
           ...(s.subcategory !== undefined ? { subcategory: s.subcategory } : {}),
         })),
         batchSize,
-        existingOrthForms: lang.lexicon.map((e: { orthographicForm?: string }) => e.orthographicForm ?? ""),
+        // Cap collision list — prompt only shows 10, no point sending 200+ entries
+        existingOrthForms: lang.lexicon.map((e: { orthographicForm?: string }) => e.orthographicForm ?? "").slice(0, 20),
         naturalismScore: lang.meta.naturalismScore,
         tags: lang.meta.tags,
         ...(lang.meta.world !== undefined ? { world: lang.meta.world } : {}),
