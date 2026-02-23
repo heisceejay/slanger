@@ -13,12 +13,13 @@ import {
   pgTable,
   text,
   timestamp,
-  integer,
   jsonb,
   boolean,
   uuid,
   index,
   uniqueIndex,
+  real,
+  integer,
 } from "drizzle-orm/pg-core";
 
 // ─── Users ────────────────────────────────────────────────────────────────────
@@ -82,7 +83,7 @@ export const languages = pgTable(
     /** Denormalized tags for fast filtering */
     tags: text("tags").array().notNull().default([]),
     /** Current version number */
-    version: integer("version").notNull().default(1),
+    version: real("version").notNull().default(1),
     /** Full LanguageDefinition JSON document */
     definition: jsonb("definition").notNull(),
     /** Snapshot of last validation run */
@@ -106,7 +107,7 @@ export const languageVersions = pgTable(
     languageId: text("language_id")
       .notNull()
       .references(() => languages.id, { onDelete: "cascade" }),
-    version: integer("version").notNull(),
+    version: real("version").notNull(),
     /** Full LanguageDefinition snapshot at this version */
     definition: jsonb("definition").notNull(),
     /** What caused this version: "user-edit", "llm-generation", "import" */

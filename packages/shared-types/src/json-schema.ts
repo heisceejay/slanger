@@ -26,7 +26,7 @@ export const LANGUAGE_DEFINITION_SCHEMA = {
         tags: { type: "array", items: { type: "string" }, maxItems: 20 },
         createdAt: { type: "string", format: "date-time" },
         updatedAt: { type: "string", format: "date-time" },
-        version: { type: "integer", minimum: 1 },
+        version: { type: "number", minimum: 1 },
         preset: { type: "string", enum: ["naturalistic", "experimental"] },
         naturalismScore: { type: "number", minimum: 0, maximum: 1 }
       }

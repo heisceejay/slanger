@@ -8,6 +8,15 @@
 
 import type { StreamEvent, OperationName } from "./types.js";
 
+export class GroqApiError extends Error {
+  statusCode: number;
+  constructor(status: number, message: string) {
+    super(message);
+    this.name = "GroqApiError";
+    this.statusCode = status;
+  }
+}
+
 // ─── Config ───────────────────────────────────────────────────────────────────
 
 export interface GroqClientConfig {
@@ -20,12 +29,12 @@ export interface GroqClientConfig {
 }
 
 export const DEFAULT_CONFIG: GroqClientConfig = {
-  apiKey:              process.env["GROQ_API_KEY"] ?? "",
-  model:               process.env["GROQ_MODEL"]   ?? "llama-3.1-8b-instant",
+  apiKey: process.env["GROQ_API_KEY"] ?? "",
+  model: process.env["GROQ_MODEL"] ?? "llama-3.1-8b-instant",
   maxTokensStructured: 4096,
-  maxTokensStreaming:  8192,
-  maxApiRetries:       1,
-  baseUrl:             "https://api.groq.com/openai/v1",
+  maxTokensStreaming: 8192,
+  maxApiRetries: 1,
+  baseUrl: "https://api.groq.com/openai/v1",
 };
 
 export type FetchFn = typeof globalThis.fetch;
@@ -61,7 +70,7 @@ export function logUsage(operation: string, usage: TokenUsage): void {
 
 export function getUsageSummary() {
   return {
-    totalInputTokens:  _usageLog.reduce((s, e) => s + e.usage.inputTokens, 0),
+    totalInputTokens: _usageLog.reduce((s, e) => s + e.usage.inputTokens, 0),
     totalOutputTokens: _usageLog.reduce((s, e) => s + e.usage.outputTokens, 0),
     calls: _usageLog.length,
   };
@@ -153,14 +162,24 @@ export async function structuredRequest(opts: StructuredRequestOptions): Promise
 
       if (!response.ok) {
         const errText = await response.text().catch(() => response.statusText);
+        let parsedErrMsg = errText;
+        try {
+          const json = JSON.parse(errText);
+          if (json?.error?.message) parsedErrMsg = json.error.message;
+        } catch { }
+
         if (response.status === 400 || response.status === 401 || response.status === 403) {
-          throw new Error(`Groq API error ${response.status}: ${errText}`);
+          throw new GroqApiError(response.status, `Groq API error ${response.status}: ${parsedErrMsg}`);
         }
         if ((response.status === 429 || response.status >= 500) && attempt < cfg.maxApiRetries) {
           await sleep(exponentialBackoff(attempt));
           continue;
         }
-        throw new Error(`Groq API error ${response.status}: ${errText}`);
+
+        if (response.status === 429) {
+          throw new GroqApiError(429, `LLM Rate Limit Exceeded: ${parsedErrMsg}`);
+        }
+        throw new GroqApiError(response.status, `Groq API error ${response.status}: ${parsedErrMsg}`);
       }
 
       const data = await response.json() as GroqResponse;
@@ -168,9 +187,9 @@ export async function structuredRequest(opts: StructuredRequestOptions): Promise
 
       const usage = data.usage;
       logUsage(opts.operation, {
-        inputTokens:  usage?.prompt_tokens     ?? 0,
+        inputTokens: usage?.prompt_tokens ?? 0,
         outputTokens: usage?.completion_tokens ?? 0,
-        totalTokens:  usage?.total_tokens      ?? 0,
+        totalTokens: usage?.total_tokens ?? 0,
       });
 
       return cleanJson(text);
@@ -221,7 +240,17 @@ export async function streamingRequest(opts: StreamingRequestOptions): Promise<s
   });
 
   if (!response.ok) {
-    throw new Error(`Groq streaming error ${response.status}: ${await response.text()}`);
+    const errText = await response.text().catch(() => response.statusText);
+    let parsedErrMsg = errText;
+    try {
+      const json = JSON.parse(errText);
+      if (json?.error?.message) parsedErrMsg = json.error.message;
+    } catch { }
+
+    if (response.status === 429) {
+      throw new GroqApiError(429, `LLM Rate Limit Exceeded: ${parsedErrMsg}`);
+    }
+    throw new GroqApiError(response.status, `Groq streaming error ${response.status}: ${parsedErrMsg}`);
   }
 
   if (!response.body) throw new Error("Response body is null");
@@ -256,7 +285,7 @@ export async function streamingRequest(opts: StreamingRequestOptions): Promise<s
         }
         const usage = chunk.usage;
         if (usage) {
-          inputTokens  = usage.prompt_tokens    ?? inputTokens;
+          inputTokens = usage.prompt_tokens ?? inputTokens;
           outputTokens = usage.completion_tokens ?? outputTokens;
         }
       } catch {
