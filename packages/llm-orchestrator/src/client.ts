@@ -150,6 +150,9 @@ export async function structuredRequest(opts: StructuredRequestOptions): Promise
   let lastError: Error | null = null;
 
   for (let attempt = 1; attempt <= cfg.maxApiRetries; attempt++) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30000); // 30s strict timeout per request
+
     try {
       const response = await _fetch(url, {
         method: "POST",
@@ -158,7 +161,9 @@ export async function structuredRequest(opts: StructuredRequestOptions): Promise
           "Authorization": `Bearer ${cfg.apiKey}`,
         },
         body: JSON.stringify(body),
+        signal: controller.signal,
       });
+      clearTimeout(timeout);
 
       if (!response.ok) {
         const retryAfterHeader = response.headers.get("retry-after");
@@ -204,14 +209,18 @@ export async function structuredRequest(opts: StructuredRequestOptions): Promise
       });
 
       return cleanJson(text);
-
-    } catch (err) {
-      lastError = err instanceof Error ? err : new Error(String(err));
-      if (attempt < cfg.maxApiRetries) await sleep(exponentialBackoff(attempt));
+    } catch (error) {
+      clearTimeout(timeout);
+      const isAbort = error instanceof Error && error.name === "AbortError";
+      const err = isAbort ? new Error("Request timed out (30s)") : error instanceof Error ? error : new Error(String(error));
+      lastError = err;
+      if (attempt < cfg.maxApiRetries) {
+        await sleep(exponentialBackoff(attempt));
+      }
     }
   }
 
-  throw lastError ?? new Error("Unknown Groq API error after retries");
+  throw lastError ?? new Error("Groq structured request failed after retries.");
 }
 
 // ─── Streaming request ────────────────────────────────────────────────────────
@@ -241,14 +250,26 @@ export async function streamingRequest(opts: StreamingRequestOptions): Promise<s
     temperature: 0.7,
   };
 
-  const response = await _fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${cfg.apiKey}`,
-    },
-    body: JSON.stringify(body),
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 90000); // 90s strict timeout for streaming
+
+  let response: Response;
+  try {
+    response = await _fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${cfg.apiKey}`,
+      },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+  } catch (error) {
+    clearTimeout(timeout);
+    const isAbort = error instanceof Error && error.name === "AbortError";
+    throw isAbort ? new Error("Streaming request timed out (90s)") : error;
+  }
+  clearTimeout(timeout);
 
   if (!response.ok) {
     const errText = await response.text().catch(() => response.statusText);
