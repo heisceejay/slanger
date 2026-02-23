@@ -15,13 +15,13 @@ COPY packages/validation/package.json ./packages/validation/
 COPY packages/llm-orchestrator/package.json ./packages/llm-orchestrator/
 
 RUN npm ci --workspace=packages/shared-types \
-           --workspace=packages/api-gateway \
-           --workspace=packages/phonology \
-           --workspace=packages/morphology \
-           --workspace=packages/syntax \
-           --workspace=packages/lexicon \
-           --workspace=packages/validation \
-           --workspace=packages/llm-orchestrator
+  --workspace=packages/api-gateway \
+  --workspace=packages/phonology \
+  --workspace=packages/morphology \
+  --workspace=packages/syntax \
+  --workspace=packages/lexicon \
+  --workspace=packages/validation \
+  --workspace=packages/llm-orchestrator
 
 # Copy source
 COPY tsconfig.base.json ./
@@ -36,13 +36,13 @@ COPY packages/llm-orchestrator ./packages/llm-orchestrator/
 
 # Build all packages in dependency order
 RUN npm run build -w packages/shared-types && \
-    npm run build -w packages/phonology && \
-    npm run build -w packages/morphology && \
-    npm run build -w packages/syntax && \
-    npm run build -w packages/lexicon && \
-    npm run build -w packages/validation && \
-    npm run build -w packages/llm-orchestrator && \
-    npm run build -w packages/api-gateway
+  npm run build -w packages/phonology && \
+  npm run build -w packages/morphology && \
+  npm run build -w packages/syntax && \
+  npm run build -w packages/lexicon && \
+  npm run build -w packages/validation && \
+  npm run build -w packages/llm-orchestrator && \
+  npm run build -w packages/api-gateway
 
 # ── Stage 2: Production image ───────────────────────────────────────────────
 FROM node:22-alpine AS production
@@ -77,9 +77,9 @@ RUN npm ci --omit=dev --workspaces
 
 USER slanger
 
-EXPOSE 3001
+EXPOSE ${PORT:-3001}
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
-  CMD wget --quiet --tries=1 --spider http://localhost:3001/health || exit 1
+  CMD wget --quiet --tries=1 --spider http://localhost:${PORT:-3001}/health || exit 1
 
 CMD ["node", "packages/api-gateway/dist/index.js"]
