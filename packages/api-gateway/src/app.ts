@@ -28,10 +28,16 @@ export async function buildApp() {
     contentSecurityPolicy: config.env === "production",
   });
 
+  const corsOrigins = process.env.CORS_ORIGINS
+    ? process.env.CORS_ORIGINS.split(",").map((o) => o.trim())
+    : [
+      "https://slanger.app",
+      "https://www.slanger.app",
+      "https://slanger.vercel.app",
+    ];
+
   await fastify.register(cors, {
-    origin: config.env === "production"
-      ? ["https://slanger.app", "https://www.slanger.app"]
-      : true,
+    origin: config.env === "production" ? corsOrigins : true,
     methods: ["GET", "POST", "OPTIONS"],
     allowedHeaders: ["Content-Type", "X-Request-ID"],
     credentials: false,
