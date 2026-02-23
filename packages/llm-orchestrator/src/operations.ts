@@ -262,18 +262,20 @@ export async function generateCorpus(
 
   let raw: string;
   const prunedLang = pruneLanguageForOp(baseLanguage, "generate_corpus");
+  // Override req.language with the pruned version to avoid massive prompt payloads
+  const prunedReq: GenerateCorpusRequest = { ...req, language: prunedLang };
   if (onEvent) {
     raw = await streamingRequest({
       operation: "generate_corpus",
       systemPrompt: CORPUS_SYSTEM_PROMPT,
-      userMessage: buildCorpusUserMessage(req),
+      userMessage: buildCorpusUserMessage(prunedReq),
       onEvent,
     });
   } else {
     raw = await structuredRequest({
       operation: "generate_corpus",
       systemPrompt: `${CORPUS_SYSTEM_PROMPT}\n\nRespond with ONLY valid JSON.`,
-      userMessage: buildCorpusUserMessage(req),
+      userMessage: buildCorpusUserMessage(prunedReq),
       expectJson: true,
       maxTokens: 2500,
     });
@@ -324,10 +326,11 @@ export async function explainRule(
   }
 
   const prunedLang = pruneLanguageForOp(req.language, "explain_rule");
+  const prunedReq: ExplainRuleRequest = { ...req, language: prunedLang };
   const raw = await structuredRequest({
     operation: "explain_rule",
     systemPrompt: EXPLAIN_SYSTEM_PROMPT,
-    userMessage: buildExplainUserMessage(req),
+    userMessage: buildExplainUserMessage(prunedReq),
     expectJson: true,
     maxTokens: 1500,
   });
@@ -363,10 +366,11 @@ export async function checkConsistency(
   }
 
   const prunedLang = pruneLanguageForOp(req.language, "check_consistency");
+  const prunedReq: CheckConsistencyRequest = { ...req, language: prunedLang };
   const raw = await structuredRequest({
     operation: "check_consistency",
     systemPrompt: CONSISTENCY_SYSTEM_PROMPT,
-    userMessage: buildConsistencyUserMessage(req, prunedLang),
+    userMessage: buildConsistencyUserMessage(prunedReq, prunedLang),
     expectJson: true,
     maxTokens: 2000,
   });
