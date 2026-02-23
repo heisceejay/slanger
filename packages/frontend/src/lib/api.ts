@@ -383,11 +383,15 @@ export interface SuggestResult {
   rationale: string;
 }
 
-export async function suggestInventory(lang: Language): Promise<SuggestResult> {
-  const res = await request<{ data: { language: Language; rationale: string } }>(
-    "POST", "/suggest-inventory", lang
+export async function suggestInventory(lang: Language): Promise<{ language: Language; rationale: string }> {
+  // Clear the existing phonology so the LLM doesn't just parrot it back when regenerating
+  const clone = { ...lang, phonology: { ...lang.phonology, inventory: { consonants: [], vowels: [] } } };
+  const res = await request<{ data: { language: Language; rationale: string; fromCache: boolean } }>(
+    "POST",
+    "/suggest-inventory",
+    clone
   );
-  return { language: persistWithHistory(lang, res.data.language, "Before: Suggest phoneme inventory"), rationale: res.data.rationale ?? "" };
+  return res.data;
 }
 
 export interface FillResult {

@@ -69,6 +69,7 @@ export interface SuggestInventoryRequest {
   naturalismScore: number;
   preset: "naturalistic" | "experimental";
   world?: string;
+  force?: boolean;
   /** Tags to guide generation, e.g. ["tonal", "click-consonants"] */
   tags: string[];
   /** Optional prior inventory to build on */
@@ -234,9 +235,9 @@ export interface CacheConfig {
 
 export const CACHE_TTLS: Record<OperationName, number> = {
   suggest_phoneme_inventory: 60 * 60 * 24 * 7,   // 7 days
-  fill_paradigm_gaps:        60 * 60 * 24 * 7,   // 7 days
-  generate_lexicon:          60 * 60 * 24 * 7,   // 7 days
-  generate_corpus:           60 * 60 * 24,        // 1 day (more volatile)
-  explain_rule:              60 * 60 * 24 * 30,   // 30 days (stable explanations)
-  check_consistency:         60 * 60,             // 1 hour (re-check after edits)
+  fill_paradigm_gaps: 60 * 60 * 24 * 7,   // 7 days
+  generate_lexicon: 60 * 60 * 24 * 7,   // 7 days
+  generate_corpus: 60 * 60 * 24,        // 1 day (more volatile)
+  explain_rule: 60 * 60 * 24 * 30,   // 30 days (stable explanations)
+  check_consistency: 60 * 60,             // 1 hour (re-check after edits)
 };

@@ -100,6 +100,7 @@ export async function llmRoutes(fastify: FastifyInstance): Promise<void> {
       naturalismScore: lang.meta.naturalismScore,
       preset: lang.meta.preset,
       tags: lang.meta.tags,
+      force: true, // Always bypass cache when regenerating from the UI
       ...(lang.meta.world !== undefined ? { world: lang.meta.world } : {}),
     }, lang);
 

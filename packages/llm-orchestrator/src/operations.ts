@@ -44,7 +44,7 @@ export async function suggestPhonemeInventory(
   const start = Date.now();
   const cache = getCache();
 
-  const cached = await cache.get<SuggestInventoryResponse>("suggest_phoneme_inventory", req);
+  const cached = req.force ? null : await cache.get<SuggestInventoryResponse>("suggest_phoneme_inventory", req);
   if (cached) {
     return {
       operation: "suggest_phoneme_inventory",
@@ -115,9 +115,11 @@ export async function fillParadigmGaps(
 
   const cached = await cache.get<FillParadigmGapsResponse>("fill_paradigm_gaps", req);
   if (cached) {
-    return { operation: "fill_paradigm_gaps", attempt: 0, rawResponse: "", data: cached.data,
+    return {
+      operation: "fill_paradigm_gaps", attempt: 0, rawResponse: "", data: cached.data,
       validation: { valid: true, errors: [], warnings: [], summary: emptySummary(), durationMs: 0 },
-      durationMs: Date.now() - start, fromCache: true, cacheKey: cached.key };
+      durationMs: Date.now() - start, fromCache: true, cacheKey: cached.key
+    };
   }
 
   const retryReasons: string[][] = [];
@@ -144,8 +146,10 @@ export async function fillParadigmGaps(
 
     if (validation.errors.filter(e => e.module === "morphology").length === 0) {
       const cacheKey = await cache.set("fill_paradigm_gaps", req, parsed);
-      return { operation: "fill_paradigm_gaps", attempt, rawResponse: raw, data: parsed,
-        validation, durationMs: Date.now() - start, fromCache: false, cacheKey };
+      return {
+        operation: "fill_paradigm_gaps", attempt, rawResponse: raw, data: parsed,
+        validation, durationMs: Date.now() - start, fromCache: false, cacheKey
+      };
     }
 
     retryReasons.push(validation.errors.map(e => `[${e.module} ${e.ruleId}] ${e.message}`));
@@ -169,9 +173,11 @@ export async function generateLexicon(
 
   const cached = await cache.get<GenerateLexiconResponse>("generate_lexicon", req);
   if (cached) {
-    return { operation: "generate_lexicon", attempt: 0, rawResponse: "", data: cached.data,
+    return {
+      operation: "generate_lexicon", attempt: 0, rawResponse: "", data: cached.data,
       validation: { valid: true, errors: [], warnings: [], summary: emptySummary(), durationMs: 0 },
-      durationMs: Date.now() - start, fromCache: true, cacheKey: cached.key };
+      durationMs: Date.now() - start, fromCache: true, cacheKey: cached.key
+    };
   }
 
   const startId = baseLanguage.lexicon.length + 1;
@@ -207,8 +213,10 @@ export async function generateLexicon(
 
     if (phonErrors.length === 0) {
       const cacheKey = await cache.set("generate_lexicon", req, parsed);
-      return { operation: "generate_lexicon", attempt, rawResponse: raw, data: parsed,
-        validation, durationMs: Date.now() - start, fromCache: false, cacheKey };
+      return {
+        operation: "generate_lexicon", attempt, rawResponse: raw, data: parsed,
+        validation, durationMs: Date.now() - start, fromCache: false, cacheKey
+      };
     }
 
     retryReasons.push(phonErrors.map(e => `[${e.ruleId}] ${e.message}`));
@@ -234,9 +242,11 @@ export async function generateCorpus(
 
   const cached = await cache.get<GenerateCorpusResponse>("generate_corpus", req);
   if (cached) {
-    return { operation: "generate_corpus", attempt: 0, rawResponse: "", data: cached.data,
+    return {
+      operation: "generate_corpus", attempt: 0, rawResponse: "", data: cached.data,
       validation: { valid: true, errors: [], warnings: [], summary: emptySummary(), durationMs: 0 },
-      durationMs: Date.now() - start, fromCache: true, cacheKey: cached.key };
+      durationMs: Date.now() - start, fromCache: true, cacheKey: cached.key
+    };
   }
 
   let raw: string;
@@ -278,8 +288,10 @@ export async function generateCorpus(
   };
 
   const cacheKey = await cache.set("generate_corpus", req, data);
-  return { operation: "generate_corpus", attempt: 1, rawResponse: raw, data,
-    validation, durationMs: Date.now() - start, fromCache: false, cacheKey };
+  return {
+    operation: "generate_corpus", attempt: 1, rawResponse: raw, data,
+    validation, durationMs: Date.now() - start, fromCache: false, cacheKey
+  };
 }
 
 // ─── Op 5: explain_rule ──────────────────────────────────────────────────────
@@ -292,9 +304,11 @@ export async function explainRule(
 
   const cached = await cache.get<ExplainRuleResponse>("explain_rule", req);
   if (cached) {
-    return { operation: "explain_rule", attempt: 0, rawResponse: "", data: cached.data,
+    return {
+      operation: "explain_rule", attempt: 0, rawResponse: "", data: cached.data,
       validation: { valid: true, errors: [], warnings: [], summary: emptySummary(), durationMs: 0 },
-      durationMs: Date.now() - start, fromCache: true, cacheKey: cached.key };
+      durationMs: Date.now() - start, fromCache: true, cacheKey: cached.key
+    };
   }
 
   const raw = await structuredRequest({
@@ -312,8 +326,10 @@ export async function explainRule(
   };
 
   const cacheKey = await cache.set("explain_rule", req, parsed);
-  return { operation: "explain_rule", attempt: 1, rawResponse: raw, data: parsed,
-    validation, durationMs: Date.now() - start, fromCache: false, cacheKey };
+  return {
+    operation: "explain_rule", attempt: 1, rawResponse: raw, data: parsed,
+    validation, durationMs: Date.now() - start, fromCache: false, cacheKey
+  };
 }
 
 // ─── Op 6: check_consistency ─────────────────────────────────────────────────
@@ -326,9 +342,11 @@ export async function checkConsistency(
 
   const cached = await cache.get<CheckConsistencyResponse>("check_consistency", req);
   if (cached) {
-    return { operation: "check_consistency", attempt: 0, rawResponse: "", data: cached.data,
+    return {
+      operation: "check_consistency", attempt: 0, rawResponse: "", data: cached.data,
       validation: { valid: true, errors: [], warnings: [], summary: emptySummary(), durationMs: 0 },
-      durationMs: Date.now() - start, fromCache: true, cacheKey: cached.key };
+      durationMs: Date.now() - start, fromCache: true, cacheKey: cached.key
+    };
   }
 
   const raw = await structuredRequest({
@@ -346,8 +364,10 @@ export async function checkConsistency(
   };
 
   const cacheKey = await cache.set("check_consistency", req, parsed);
-  return { operation: "check_consistency", attempt: 1, rawResponse: raw, data: parsed,
-    validation, durationMs: Date.now() - start, fromCache: false, cacheKey };
+  return {
+    operation: "check_consistency", attempt: 1, rawResponse: raw, data: parsed,
+    validation, durationMs: Date.now() - start, fromCache: false, cacheKey
+  };
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

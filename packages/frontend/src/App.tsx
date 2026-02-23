@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from "react";
-import type { Language, VersionSnapshot } from "./lib/api";
-import { listLanguages, deleteLanguage, rollbackToVersion } from "./lib/api";
+import type { Language } from "./lib/api";
+import { listLanguages, deleteLanguage } from "./lib/api";
 import { exportPdf, exportJson } from "./lib/export-pdf";
 import { Dashboard } from "./views/Dashboard";
 import { PhonologyView } from "./views/Phonology";
@@ -23,12 +23,10 @@ export default function App() {
   );
   const [view, setView] = useState<View>("dashboard");
   const [exportOpen, setExportOpen] = useState(false);
-  const [historyOpen, setHistoryOpen] = useState(false);
   const exportRef = useRef<HTMLDivElement>(null);
-  const historyRef = useRef<HTMLDivElement>(null);
 
   const activeLang = languages.find((l) => l.meta.id === activeId) ?? null;
-  const versionHistory = activeLang?.meta?.versionHistory ?? [];
+
 
   useEffect(() => {
     if (!exportOpen) return;
@@ -38,15 +36,6 @@ export default function App() {
     document.addEventListener("click", close);
     return () => document.removeEventListener("click", close);
   }, [exportOpen]);
-
-  useEffect(() => {
-    if (!historyOpen) return;
-    const close = (e: MouseEvent) => {
-      if (historyRef.current && !historyRef.current.contains(e.target as Node)) setHistoryOpen(false);
-    };
-    document.addEventListener("click", close);
-    return () => document.removeEventListener("click", close);
-  }, [historyOpen]);
 
   // Called when an LLM op updates a language in sessionStorage
   const refreshLang = useCallback((updated: Language) => {
@@ -74,74 +63,6 @@ export default function App() {
             <span className="tag" style={{ borderColor: "rgba(245,245,240,0.3)", color: "rgba(245,245,240,0.6)", fontSize: 9 }}>
               v{activeLang.meta.version}
             </span>
-            <div ref={historyRef} style={{ position: "relative", marginLeft: 12 }}>
-              <button
-                type="button"
-                className="btn"
-                onClick={() => setHistoryOpen((o) => !o)}
-                title="Version history"
-              >
-                🕐 History{versionHistory.length > 0 ? ` (${versionHistory.length})` : ""}
-              </button>
-              {historyOpen && (
-                <div
-                  style={{
-                    position: "absolute",
-                    top: "100%",
-                    left: 0,
-                    marginTop: 4,
-                    background: "var(--paper)",
-                    border: "1px solid var(--rule-heavy)",
-                    boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
-                    zIndex: 100,
-                    minWidth: 260,
-                    maxHeight: 320,
-                    overflowY: "auto",
-                  }}
-                >
-                  {versionHistory.length === 0 ? (
-                    <div style={{ padding: 12, fontSize: 11, opacity: 0.6 }}>No snapshots yet. Run an AI step to save history.</div>
-                  ) : (
-                    versionHistory.map((entry: VersionSnapshot, i: number) => (
-                      <div
-                        key={i}
-                        style={{
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                          padding: "8px 12px",
-                          borderBottom: "1px solid var(--rule)",
-                          gap: 8,
-                        }}
-                      >
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: 11 }}>
-                            <span style={{ opacity: 0.5, fontFamily: "var(--mono)", marginRight: 6 }}>
-                              v{entry.snapshot.meta.version}
-                            </span>
-                            {entry.label}
-                          </div>
-                          <div style={{ fontSize: 9, opacity: 0.4 }}>
-                            {new Date(entry.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-                          </div>
-                        </div>
-                        <button
-                          type="button"
-                          className="btn btn-sm"
-                          onClick={() => {
-                            const restored = rollbackToVersion(activeLang.meta.id, i);
-                            if (restored) refreshLang(restored);
-                            setHistoryOpen(false);
-                          }}
-                        >
-                          Restore
-                        </button>
-                      </div>
-                    ))
-                  )}
-                </div>
-              )}
-            </div>
             <div ref={exportRef} style={{ position: "relative", marginLeft: 8 }}>
               <button
                 type="button"
