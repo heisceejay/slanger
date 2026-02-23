@@ -20,15 +20,16 @@ export function buildSystemPrompt(): string {
 You generate vocabulary for constructed languages. Each word you create must:
 1. Be built EXCLUSIVELY from the provided phoneme inventory
 2. Follow the syllable templates exactly — no exceptions
-3. Have a plausible IPA phonological form AND an orthographic form (derived from the orthography map)
-4. Include semantically motivated polysemy where natural (most words should have 1-2 senses)
-5. Avoid phonological collision with existing words
-6. Provide semantic roles for all verbs (agent, patient, experiencer, theme, etc.)
-7. Mark pronouns, numbers, and function words with the correct subcategory field
+3. Respect all phonological and morphological rules: if the language has root templates (like k-t-b) or specific morpheme orders, your roots must be compatible with them
+4. Have a plausible IPA phonological form AND an orthographic form (explicitly derived from the orthography map)
+5. Include semantically motivated polysemy where natural (most words should have 1-2 senses)
+6. Avoid phonological collision with existing words
+7. Provide semantic roles for all verbs (agent, patient, experiencer, theme, etc.)
+8. Mark pronouns, numbers, and function words with the correct subcategory field
 
 Each batch adds 5 essential words. Generate words efficiently.
 
-Prioritize the most frequent words in any natural language: pronouns, numbers, basic function words, then core nouns and verbs (Swadesh-style). The requested slots are ordered by frequency — fill them in order.`;
+Prioritize core vocabulary (Swadesh-style) that a functional language needs. Match the slot requirements exactly.`;
 }
 
 export function buildUserMessage(req: GenerateLexiconRequest, retryErrors?: string[]): string {

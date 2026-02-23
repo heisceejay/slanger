@@ -201,17 +201,21 @@ export async function generateLexicon(
       continue;
     }
 
-    // Validate by adding entries to language and running phonology pass only
+    // Validate by adding entries to language and running full validation
     const candidate: LanguageDefinition = {
       ...baseLanguage,
       lexicon: [...baseLanguage.lexicon, ...parsed.entries],
     };
     const validation = validate(candidate);
-    const phonErrors = validation.errors.filter(e =>
-      e.module === "phonology" && parsed.entries.some(entry => e.entityRef === entry.id)
-    );
 
-    if (phonErrors.length === 0) {
+    // Filter for errors that are likely caused by the newly generated entries
+    const relevantErrors = validation.errors.filter(e => {
+      const isRelevantModule = e.module === "phonology" || e.module === "morphology" || e.module === "cross-module";
+      const referencesNewEntry = parsed.entries.some(entry => e.entityRef?.startsWith(entry.id));
+      return isRelevantModule && referencesNewEntry;
+    });
+
+    if (relevantErrors.length === 0) {
       const cacheKey = await cache.set("generate_lexicon", req, parsed);
       return {
         operation: "generate_lexicon", attempt, rawResponse: raw, data: parsed,
@@ -219,7 +223,7 @@ export async function generateLexicon(
       };
     }
 
-    retryReasons.push(phonErrors.map(e => `[${e.ruleId}] ${e.message}`));
+    retryReasons.push(relevantErrors.map(e => `[${e.module} ${e.ruleId}] ${e.message}`));
   }
 
   throw buildOperationError("generate_lexicon", MAX_ATTEMPTS, retryReasons, start);

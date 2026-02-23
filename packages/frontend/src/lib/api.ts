@@ -411,10 +411,16 @@ export async function suggestInventory(lang: Language): Promise<{ language: Lang
 
   // Preserve existing settings that the AI operation might not have returned or might have reset
   const serverLang = res.data.language;
+
+  const currentOrtho = lang.phonology.orthography || {};
+  const hasOrthography = Object.keys(currentOrtho).length > 0;
+  const currentWS = lang.phonology.writingSystem;
+  const hasWS = currentWS && Object.keys(currentWS.mappings || {}).length > 0;
+
   const mergedPhonology = {
     ...serverLang.phonology,
-    orthography: lang.phonology.orthography,
-    writingSystem: lang.phonology.writingSystem,
+    orthography: hasOrthography ? currentOrtho : serverLang.phonology.orthography,
+    writingSystem: hasWS ? currentWS : (serverLang.phonology.writingSystem || lang.phonology.writingSystem),
     suprasegmentals: lang.phonology.suprasegmentals,
   };
   serverLang.phonology = mergedPhonology;
