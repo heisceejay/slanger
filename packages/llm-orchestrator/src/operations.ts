@@ -19,6 +19,8 @@ import { withValidationRetry, buildRetryPreamble, MAX_ATTEMPTS } from "./retry.j
 import type {
   LLMOperationResult, LLMOperationError, StreamEvent,
   SuggestInventoryRequest, SuggestInventoryResponse,
+  SuggestMorphologyRequest, SuggestMorphologyResponse,
+  SuggestSyntaxRequest, SuggestSyntaxResponse,
   FillParadigmGapsRequest, FillParadigmGapsResponse,
   GenerateLexiconRequest, GenerateLexiconResponse,
   GenerateCorpusRequest, GenerateCorpusResponse,
@@ -27,6 +29,8 @@ import type {
 } from "./types.js";
 
 import * as SuggestInventoryPrompt from "./prompts/suggest-inventory.js";
+import * as SuggestMorphologyPrompt from "./prompts/suggest-morphology.js";
+import * as SuggestSyntaxPrompt from "./prompts/suggest-syntax.js";
 import * as FillParadigmsPrompt from "./prompts/fill-paradigms.js";
 import * as GenerateLexiconPrompt from "./prompts/generate-lexicon.js";
 import {
@@ -102,6 +106,114 @@ export async function suggestPhonemeInventory(
   }
 
   throw buildOperationError("suggest_phoneme_inventory", MAX_ATTEMPTS, retryReasons, start);
+}
+
+// ─── Op 1.5: suggest_morphology ──────────────────────────────────────────────
+
+export async function suggestMorphology(
+  req: SuggestMorphologyRequest,
+  baseLanguage: LanguageDefinition
+): Promise<LLMOperationResult<SuggestMorphologyResponse>> {
+  const start = Date.now();
+  const cache = getCache();
+
+  const cached = await cache.get<SuggestMorphologyResponse>("suggest_morphology", req);
+  if (cached) {
+    return {
+      operation: "suggest_morphology", attempt: 0, rawResponse: "", data: cached.data,
+      validation: { valid: true, errors: [], warnings: [], summary: emptySummary(), durationMs: 0 },
+      durationMs: Date.now() - start, fromCache: true, cacheKey: cached.key
+    };
+  }
+
+  const retryReasons: string[][] = [];
+
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    const previousErrors = retryReasons.length > 0 ? retryReasons[retryReasons.length - 1] : undefined;
+    const raw = await structuredRequest({
+      operation: "suggest_morphology",
+      systemPrompt: SuggestMorphologyPrompt.buildSystemPrompt(),
+      userMessage: SuggestMorphologyPrompt.buildUserMessage(req, previousErrors),
+      expectJson: true,
+    });
+
+    let parsed: SuggestMorphologyResponse;
+    try { parsed = SuggestMorphologyPrompt.parseResponse(raw); }
+    catch (e) {
+      retryReasons.push([`Parse error: ${e instanceof Error ? e.message : String(e)}`]);
+      if (attempt === MAX_ATTEMPTS) throw buildOperationError("suggest_morphology", attempt, retryReasons, start);
+      continue;
+    }
+
+    const candidate: LanguageDefinition = { ...baseLanguage, morphology: parsed.morphology };
+    const validation = validate(candidate);
+
+    if (validation.errors.filter(e => e.module === "morphology").length === 0) {
+      const cacheKey = await cache.set("suggest_morphology", req, parsed);
+      return {
+        operation: "suggest_morphology", attempt, rawResponse: raw, data: parsed,
+        validation, durationMs: Date.now() - start, fromCache: false, cacheKey
+      };
+    }
+
+    retryReasons.push(validation.errors.map(e => `[${e.module} ${e.ruleId}] ${e.message}`));
+  }
+
+  throw buildOperationError("suggest_morphology", MAX_ATTEMPTS, retryReasons, start);
+}
+
+// ─── Op 1.7: suggest_syntax ─────────────────────────────────────────────────
+
+export async function suggestSyntax(
+  req: SuggestSyntaxRequest,
+  baseLanguage: LanguageDefinition
+): Promise<LLMOperationResult<SuggestSyntaxResponse>> {
+  const start = Date.now();
+  const cache = getCache();
+
+  const cached = await cache.get<SuggestSyntaxResponse>("suggest_syntax", req);
+  if (cached) {
+    return {
+      operation: "suggest_syntax", attempt: 0, rawResponse: "", data: cached.data,
+      validation: { valid: true, errors: [], warnings: [], summary: emptySummary(), durationMs: 0 },
+      durationMs: Date.now() - start, fromCache: true, cacheKey: cached.key
+    };
+  }
+
+  const retryReasons: string[][] = [];
+
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    const previousErrors = retryReasons.length > 0 ? retryReasons[retryReasons.length - 1] : undefined;
+    const raw = await structuredRequest({
+      operation: "suggest_syntax",
+      systemPrompt: SuggestSyntaxPrompt.buildSystemPrompt(),
+      userMessage: SuggestSyntaxPrompt.buildUserMessage(req, previousErrors),
+      expectJson: true,
+    });
+
+    let parsed: SuggestSyntaxResponse;
+    try { parsed = SuggestSyntaxPrompt.parseResponse(raw); }
+    catch (e) {
+      retryReasons.push([`Parse error: ${e instanceof Error ? e.message : String(e)}`]);
+      if (attempt === MAX_ATTEMPTS) throw buildOperationError("suggest_syntax", attempt, retryReasons, start);
+      continue;
+    }
+
+    const candidate: LanguageDefinition = { ...baseLanguage, syntax: parsed.syntax };
+    const validation = validate(candidate);
+
+    if (validation.errors.filter(e => e.module === "syntax").length === 0) {
+      const cacheKey = await cache.set("suggest_syntax", req, parsed);
+      return {
+        operation: "suggest_syntax", attempt, rawResponse: raw, data: parsed,
+        validation, durationMs: Date.now() - start, fromCache: false, cacheKey
+      };
+    }
+
+    retryReasons.push(validation.errors.map(e => `[${e.module} ${e.ruleId}] ${e.message}`));
+  }
+
+  throw buildOperationError("suggest_syntax", MAX_ATTEMPTS, retryReasons, start);
 }
 
 // ─── Op 2: fill_paradigm_gaps ────────────────────────────────────────────────

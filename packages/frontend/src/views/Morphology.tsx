@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import type { Language } from "../lib/api";
-import { fillParadigms, updateLanguage } from "../lib/api";
+import { fillParadigms, suggestMorphology, updateLanguage } from "../lib/api";
 
 const TYPOLOGIES = ["analytic", "agglutinative", "fusional", "polysynthetic", "mixed"] as const;
 const CATEGORY_OPTIONS = [
@@ -89,6 +89,25 @@ export function MorphologyView({
       setError((e as Error).message);
     } finally {
       setFilling(false);
+    }
+  }
+
+  const [suggesting, setSuggesting] = useState(false);
+  async function handleSuggest() {
+    setSuggesting(true);
+    setError("");
+    setRationale("");
+    try {
+      const { language, rationale: r } = await suggestMorphology(lang);
+      onUpdated(language);
+      setRationale(r);
+      // Select the first paradigm if any were generated
+      const firstParadigm = Object.keys(language.morphology.paradigms)[0];
+      if (firstParadigm) setSelectedParadigm(firstParadigm);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setSuggesting(false);
     }
   }
 
@@ -192,15 +211,27 @@ export function MorphologyView({
     return { before, afterIpa, beforeIpa: ipa };
   }
 
+  const hasPhonology = (lang.phonology?.inventory?.consonants?.length ?? 0) > 0 && (lang.phonology?.inventory?.vowels?.length ?? 0) > 0;
+
   return (
     <>
       <div className="view-header">
         <h1 className="view-title">Morphology</h1>
-        <span className="view-subtitle">{morph.typology}</span>
-        <div style={{ marginLeft: "auto", display: "flex", gap: 10, alignItems: "center" }}>
+        <span className="view-subtitle">{morph.typology} system</span>
+        <div style={{ marginLeft: "auto", display: "flex", gap: 10 }}>
+          <button
+            className="btn"
+            onClick={handleSuggest}
+            disabled={suggesting || filling || !hasPhonology}
+            title="AI Suggest typology and categories"
+          >
+            {suggesting ? <span className="spinner" /> : "✧"}
+            Suggest Morphology
+          </button>
           <select
             value={morph.typology}
             onChange={(e) => handleMorphChange({ typology: e.target.value as MorphologyConfig["typology"] })}
+            disabled={!hasPhonology}
             style={{
               padding: "8px 12px",
               fontFamily: "var(--mono)",
@@ -208,13 +239,14 @@ export function MorphologyView({
               border: "1px solid var(--rule-heavy)",
               background: "var(--paper)",
               color: "var(--ink)",
+              opacity: hasPhonology ? 1 : 0.5,
             }}
           >
             {TYPOLOGIES.map((t) => (
               <option key={t} value={t}>{t}</option>
             ))}
           </select>
-          <button className="btn" onClick={handleFill} disabled={filling}>
+          <button className="btn" onClick={handleFill} disabled={filling || suggesting || !hasPhonology}>
             {filling ? <span className="spinner" /> : "⊛"}
             AI Fill Paradigms
           </button>
@@ -223,553 +255,570 @@ export function MorphologyView({
 
       <div className="view-body">
         {error && <div style={{ color: "var(--error)", fontSize: 11, marginBottom: 16 }}>{error}</div>}
-        {rationale && (
-          <div className="panel mb16">
-            <div className="panel-body">
-              <div className="muted small mb8" style={{ letterSpacing: "0.1em", textTransform: "uppercase" }}>AI Rationale</div>
-              <div style={{ fontSize: 12, lineHeight: 1.7, opacity: 0.8 }}>{rationale}</div>
+
+        {!hasPhonology ? (
+          <div className="panel" style={{ padding: 40, textAlign: "center", borderStyle: "dashed", opacity: 0.8 }}>
+            <div className="muted mb16" style={{ fontSize: 12 }}>
+              Morphology definition is locked until you define your language's Phonology.
+            </div>
+            <div style={{ display: "flex", justifyContent: "center" }}>
+              <div style={{ padding: 12, border: "1px solid var(--rule)", borderRadius: 8, background: "rgba(255,255,255,0.05)" }}>
+                <div className="small mb8">Phonology Required</div>
+                <span className="muted small">Define phoneme inventory in the Phonology tab first.</span>
+              </div>
             </div>
           </div>
-        )}
-
-        {/* Coverage indicator */}
-        <div className="panel mb16">
-          <div className="panel-head"><span className="panel-title">Category coverage</span></div>
-          <div className="panel-body">
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 16 }}>
-              {coverage.map(({ pos, categories }) => (
-                <div key={pos} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ fontSize: 9, textTransform: "uppercase", letterSpacing: "0.08em", opacity: 0.7, minWidth: 48 }}>{pos}</span>
-                  <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-                    {categories.map(({ name, defined }) => (
-                      <span
-                        key={name}
-                        title={`${name}: ${defined ? "defined" : "not set"}`}
-                        style={{
-                          width: 8,
-                          height: 8,
-                          borderRadius: "50%",
-                          background: defined ? "var(--ink)" : "transparent",
-                          border: "1px solid var(--rule-heavy)",
-                        }}
-                      />
-                    ))}
-                  </div>
+        ) : (
+          <>
+            {rationale && (
+              <div className="panel mb16">
+                <div className="panel-body">
+                  <div className="muted small mb8" style={{ letterSpacing: "0.1em", textTransform: "uppercase" }}>AI Rationale</div>
+                  <div style={{ fontSize: 12, lineHeight: 1.7, opacity: 0.8 }}>{rationale}</div>
                 </div>
-              ))}
-            </div>
-          </div>
-        </div>
+              </div>
+            )}
 
-        {/* Templatic Morphology panel */}
-        <div className="panel mb16">
-          <div className="panel-head">
-            <span className="panel-title">Templatic Morphology</span>
-            <span className="muted small" style={{ marginLeft: 8 }}>root-and-pattern (Semitic-style)</span>
-            <div style={{ marginLeft: "auto" }}>
-              <button
-                type="button"
-                onClick={() => {
-                  const enabled = !(morph.templatic?.enabled ?? false);
-                  handleMorphChange({
-                    templatic: {
-                      enabled,
-                      rootTemplates: morph.templatic?.rootTemplates ?? ["CVCVC"],
-                      vocaloidPatterns: morph.templatic?.vocaloidPatterns ?? {},
-                      slots: morph.templatic?.slots ?? ["root", "tense"],
-                    },
-                  });
-                }}
-                style={{
-                  fontFamily: "var(--mono)", fontSize: 10, letterSpacing: "0.1em",
-                  padding: "4px 12px", cursor: "pointer", transition: "var(--transition)",
-                  background: morph.templatic?.enabled ? "var(--ink)" : "transparent",
-                  color: morph.templatic?.enabled ? "var(--paper)" : "var(--ink)",
-                  border: "1px solid " + (morph.templatic?.enabled ? "var(--ink)" : "var(--rule-heavy)"),
-                }}
-              >
-                {morph.templatic?.enabled ? "ENABLED" : "DISABLED"}
-              </button>
+            {/* Coverage indicator */}
+            <div className="panel mb16">
+              <div className="panel-head"><span className="panel-title">Category coverage</span></div>
+              <div className="panel-body">
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 16 }}>
+                  {coverage.map(({ pos, categories }) => (
+                    <div key={pos} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <span style={{ fontSize: 9, textTransform: "uppercase", letterSpacing: "0.08em", opacity: 0.7, minWidth: 48 }}>{pos}</span>
+                      <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+                        {categories.map(({ name, defined }) => (
+                          <span
+                            key={name}
+                            title={`${name}: ${defined ? "defined" : "not set"}`}
+                            style={{
+                              width: 8,
+                              height: 8,
+                              borderRadius: "50%",
+                              background: defined ? "var(--ink)" : "transparent",
+                              border: "1px solid var(--rule-heavy)",
+                            }}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
-          </div>
-          {morph.templatic?.enabled && (
-            <div className="panel-body">
-              <div className="grid-2">
-                <div>
-                  <div className="muted small mb8" style={{ letterSpacing: "0.1em", textTransform: "uppercase" }}>Root Templates</div>
-                  <div className="phoneme-chips mb8">
-                    {(morph.templatic.rootTemplates ?? []).map((rt, i) => (
-                      <span key={i} className="tag tag-fill" style={{ fontFamily: "var(--mono)", fontSize: 13, display: "flex", alignItems: "center", gap: 6 }}>
-                        {rt}
-                        <span
-                          onClick={() => {
-                            const next = morph.templatic!.rootTemplates.filter((_, j) => j !== i);
-                            handleMorphChange({ templatic: { ...morph.templatic!, rootTemplates: next } });
+
+            {/* Templatic Morphology panel */}
+            <div className="panel mb16">
+              <div className="panel-head">
+                <span className="panel-title">Templatic Morphology</span>
+                <span className="muted small" style={{ marginLeft: 8 }}>root-and-pattern (Semitic-style)</span>
+                <div style={{ marginLeft: "auto" }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const enabled = !(morph.templatic?.enabled ?? false);
+                      handleMorphChange({
+                        templatic: {
+                          enabled,
+                          rootTemplates: morph.templatic?.rootTemplates ?? ["CVCVC"],
+                          vocaloidPatterns: morph.templatic?.vocaloidPatterns ?? {},
+                          slots: morph.templatic?.slots ?? ["root", "tense"],
+                        },
+                      });
+                    }}
+                    style={{
+                      fontFamily: "var(--mono)", fontSize: 10, letterSpacing: "0.1em",
+                      padding: "4px 12px", cursor: "pointer", transition: "var(--transition)",
+                      background: morph.templatic?.enabled ? "var(--ink)" : "transparent",
+                      color: morph.templatic?.enabled ? "var(--paper)" : "var(--ink)",
+                      border: "1px solid " + (morph.templatic?.enabled ? "var(--ink)" : "var(--rule-heavy)"),
+                    }}
+                  >
+                    {morph.templatic?.enabled ? "ENABLED" : "DISABLED"}
+                  </button>
+                </div>
+              </div>
+              {morph.templatic?.enabled && (
+                <div className="panel-body">
+                  <div className="grid-2">
+                    <div>
+                      <div className="muted small mb8" style={{ letterSpacing: "0.1em", textTransform: "uppercase" }}>Root Templates</div>
+                      <div className="phoneme-chips mb8">
+                        {(morph.templatic.rootTemplates ?? []).map((rt, i) => (
+                          <span key={i} className="tag tag-fill" style={{ fontFamily: "var(--mono)", fontSize: 13, display: "flex", alignItems: "center", gap: 6 }}>
+                            {rt}
+                            <span
+                              onClick={() => {
+                                const next = morph.templatic!.rootTemplates.filter((_, j) => j !== i);
+                                handleMorphChange({ templatic: { ...morph.templatic!, rootTemplates: next } });
+                              }}
+                              style={{ cursor: "pointer", opacity: 0.5, fontSize: 10 }}
+                            >×</span>
+                          </span>
+                        ))}
+                      </div>
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <input
+                          id="new-root-template"
+                          placeholder="e.g. CVCVC"
+                          style={{
+                            flex: 1, padding: "6px 10px", fontFamily: "var(--mono)", fontSize: 12,
+                            border: "1px solid var(--rule-heavy)", background: "var(--paper)", color: "var(--ink)",
                           }}
-                          style={{ cursor: "pointer", opacity: 0.5, fontSize: 10 }}
-                        >×</span>
-                      </span>
-                    ))}
-                  </div>
-                  <div style={{ display: "flex", gap: 8 }}>
-                    <input
-                      id="new-root-template"
-                      placeholder="e.g. CVCVC"
-                      style={{
-                        flex: 1, padding: "6px 10px", fontFamily: "var(--mono)", fontSize: 12,
-                        border: "1px solid var(--rule-heavy)", background: "var(--paper)", color: "var(--ink)",
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          const val = (e.target as HTMLInputElement).value.trim().toUpperCase();
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              const val = (e.target as HTMLInputElement).value.trim().toUpperCase();
+                              if (!val) return;
+                              const next = [...(morph.templatic?.rootTemplates ?? []), val];
+                              handleMorphChange({ templatic: { ...morph.templatic!, rootTemplates: next } });
+                              (e.target as HTMLInputElement).value = "";
+                            }
+                          }}
+                        />
+                        <button className="btn btn-sm" onClick={() => {
+                          const inp = document.getElementById("new-root-template") as HTMLInputElement;
+                          const val = inp.value.trim().toUpperCase();
                           if (!val) return;
                           const next = [...(morph.templatic?.rootTemplates ?? []), val];
                           handleMorphChange({ templatic: { ...morph.templatic!, rootTemplates: next } });
-                          (e.target as HTMLInputElement).value = "";
-                        }
-                      }}
-                    />
-                    <button className="btn btn-sm" onClick={() => {
-                      const inp = document.getElementById("new-root-template") as HTMLInputElement;
-                      const val = inp.value.trim().toUpperCase();
-                      if (!val) return;
-                      const next = [...(morph.templatic?.rootTemplates ?? []), val];
-                      handleMorphChange({ templatic: { ...morph.templatic!, rootTemplates: next } });
-                      inp.value = "";
-                    }}>Add</button>
+                          inp.value = "";
+                        }}>Add</button>
+                      </div>
+                      <div className="muted small" style={{ marginTop: 6, opacity: 0.5 }}>Use C=consonant slot, V=vowel slot. Press Enter or Add.</div>
+                    </div>
+                    <div>
+                      <div className="muted small mb8" style={{ letterSpacing: "0.1em", textTransform: "uppercase" }}>Vocalism Patterns</div>
+                      <table className="tbl tbl-mono" style={{ marginBottom: 8 }}>
+                        <thead><tr><th>Category</th><th>Pattern</th><th></th></tr></thead>
+                        <tbody>
+                          {Object.entries(morph.templatic.vocaloidPatterns ?? {}).map(([cat, pat]) => (
+                            <tr key={cat}>
+                              <td style={{ fontSize: 11 }}>{cat}</td>
+                              <td style={{ fontSize: 13 }}>{pat}</td>
+                              <td>
+                                <button
+                                  style={{ background: "none", border: "none", cursor: "pointer", opacity: 0.5, fontSize: 11 }}
+                                  onClick={() => {
+                                    const next = { ...morph.templatic!.vocaloidPatterns };
+                                    delete next[cat];
+                                    handleMorphChange({ templatic: { ...morph.templatic!, vocaloidPatterns: next } });
+                                  }}
+                                >×</button>
+                              </td>
+                            </tr>
+                          ))}
+                          {Object.keys(morph.templatic.vocaloidPatterns ?? {}).length === 0 && (
+                            <tr><td colSpan={3} style={{ opacity: 0.4, textAlign: "center" }}>No patterns yet</td></tr>
+                          )}
+                        </tbody>
+                      </table>
+                      <div style={{ display: "flex", gap: 6 }}>
+                        <input id="new-voc-cat" placeholder="e.g. verb.tense.past" style={{ flex: 1.5, padding: "5px 8px", fontFamily: "var(--mono)", fontSize: 11, border: "1px solid var(--rule-heavy)", background: "var(--paper)", color: "var(--ink)" }} />
+                        <input id="new-voc-pat" placeholder="e.g. a-a" style={{ flex: 1, padding: "5px 8px", fontFamily: "var(--mono)", fontSize: 11, border: "1px solid var(--rule-heavy)", background: "var(--paper)", color: "var(--ink)" }} />
+                        <button className="btn btn-sm" onClick={() => {
+                          const cat = (document.getElementById("new-voc-cat") as HTMLInputElement).value.trim();
+                          const pat = (document.getElementById("new-voc-pat") as HTMLInputElement).value.trim();
+                          if (!cat || !pat) return;
+                          handleMorphChange({ templatic: { ...morph.templatic!, vocaloidPatterns: { ...morph.templatic!.vocaloidPatterns, [cat]: pat } } });
+                          (document.getElementById("new-voc-cat") as HTMLInputElement).value = "";
+                          (document.getElementById("new-voc-pat") as HTMLInputElement).value = "";
+                        }}>Add</button>
+                      </div>
+                    </div>
                   </div>
-                  <div className="muted small" style={{ marginTop: 6, opacity: 0.5 }}>Use C=consonant slot, V=vowel slot. Press Enter or Add.</div>
-                </div>
-                <div>
-                  <div className="muted small mb8" style={{ letterSpacing: "0.1em", textTransform: "uppercase" }}>Vocalism Patterns</div>
-                  <table className="tbl tbl-mono" style={{ marginBottom: 8 }}>
-                    <thead><tr><th>Category</th><th>Pattern</th><th></th></tr></thead>
-                    <tbody>
-                      {Object.entries(morph.templatic.vocaloidPatterns ?? {}).map(([cat, pat]) => (
-                        <tr key={cat}>
-                          <td style={{ fontSize: 11 }}>{cat}</td>
-                          <td style={{ fontSize: 13 }}>{pat}</td>
-                          <td>
-                            <button
-                              style={{ background: "none", border: "none", cursor: "pointer", opacity: 0.5, fontSize: 11 }}
-                              onClick={() => {
-                                const next = { ...morph.templatic!.vocaloidPatterns };
-                                delete next[cat];
-                                handleMorphChange({ templatic: { ...morph.templatic!, vocaloidPatterns: next } });
-                              }}
-                            >×</button>
-                          </td>
-                        </tr>
+
+                  {/* Slots */}
+                  <div className="mt16">
+                    <div className="muted small mb8" style={{ letterSpacing: "0.1em", textTransform: "uppercase" }}>Morpheme Slots</div>
+                    <div className="phoneme-chips">
+                      {(morph.templatic.slots ?? []).map((s, i) => (
+                        <span key={i} className="tag" style={{ fontFamily: "var(--mono)", fontSize: 11, display: "flex", alignItems: "center", gap: 4 }}>
+                          <span style={{ opacity: 0.4, fontSize: 9 }}>{i + 1}.</span> {s}
+                        </span>
                       ))}
-                      {Object.keys(morph.templatic.vocaloidPatterns ?? {}).length === 0 && (
-                        <tr><td colSpan={3} style={{ opacity: 0.4, textAlign: "center" }}>No patterns yet</td></tr>
-                      )}
-                    </tbody>
-                  </table>
-                  <div style={{ display: "flex", gap: 6 }}>
-                    <input id="new-voc-cat" placeholder="e.g. verb.tense.past" style={{ flex: 1.5, padding: "5px 8px", fontFamily: "var(--mono)", fontSize: 11, border: "1px solid var(--rule-heavy)", background: "var(--paper)", color: "var(--ink)" }} />
-                    <input id="new-voc-pat" placeholder="e.g. a-a" style={{ flex: 1, padding: "5px 8px", fontFamily: "var(--mono)", fontSize: 11, border: "1px solid var(--rule-heavy)", background: "var(--paper)", color: "var(--ink)" }} />
-                    <button className="btn btn-sm" onClick={() => {
-                      const cat = (document.getElementById("new-voc-cat") as HTMLInputElement).value.trim();
-                      const pat = (document.getElementById("new-voc-pat") as HTMLInputElement).value.trim();
-                      if (!cat || !pat) return;
-                      handleMorphChange({ templatic: { ...morph.templatic!, vocaloidPatterns: { ...morph.templatic!.vocaloidPatterns, [cat]: pat } } });
-                      (document.getElementById("new-voc-cat") as HTMLInputElement).value = "";
-                      (document.getElementById("new-voc-pat") as HTMLInputElement).value = "";
-                    }}>Add</button>
+                      {(morph.templatic.slots ?? []).length === 0 && <span className="muted small">No slots defined</span>}
+                    </div>
                   </div>
                 </div>
-              </div>
-
-              {/* Slots */}
-              <div className="mt16">
-                <div className="muted small mb8" style={{ letterSpacing: "0.1em", textTransform: "uppercase" }}>Morpheme Slots</div>
-                <div className="phoneme-chips">
-                  {(morph.templatic.slots ?? []).map((s, i) => (
-                    <span key={i} className="tag" style={{ fontFamily: "var(--mono)", fontSize: 11, display: "flex", alignItems: "center", gap: 4 }}>
-                      <span style={{ opacity: 0.4, fontSize: 9 }}>{i + 1}.</span> {s}
-                    </span>
-                  ))}
-                  {(morph.templatic.slots ?? []).length === 0 && <span className="muted small">No slots defined</span>}
-                </div>
-              </div>
-            </div>
-          )}
-          {!morph.templatic?.enabled && (
-            <div className="panel-body">
-              <div className="muted small" style={{ opacity: 0.5 }}>
-                Enable templatic morphology for root-and-pattern systems like Arabic or Hebrew, where words are derived by inserting vowels into a consonantal root skeleton (e.g. k-t-b → kataba, kitaab).
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Morpheme order slot diagram */}
-        <div className="panel mb16">
-          <div className="panel-head"><span className="panel-title">Morpheme order</span></div>
-          <div className="panel-body">
-            <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
-              {morph.morphemeOrder.map((slot, i) => (
-                <div
-                  key={`${slot}-${i}`}
-                  style={{
-                    display: "flex",
-                    alignItems: "stretch",
-                    border: "1px solid var(--rule-heavy)",
-                    background: "var(--paper)",
-                  }}
-                >
-                  <div
-                    style={{
-                      padding: "8px 14px",
-                      fontFamily: "var(--mono)",
-                      fontSize: 12,
-                      display: "flex",
-                      alignItems: "center",
-                    }}
-                  >
-                    {slot}
+              )}
+              {!morph.templatic?.enabled && (
+                <div className="panel-body">
+                  <div className="muted small" style={{ opacity: 0.5 }}>
+                    Enable templatic morphology for root-and-pattern systems like Arabic or Hebrew, where words are derived by inserting vowels into a consonantal root skeleton (e.g. k-t-b → kataba, kitaab).
                   </div>
-                  <div style={{ display: "flex", flexDirection: "column", borderLeft: "1px solid var(--rule)" }}>
-                    <button
-                      type="button"
-                      onClick={() => moveSlot(i, -1)}
-                      disabled={i === 0}
-                      style={{
-                        padding: "0px 8px",
-                        flex: 1,
-                        border: "none",
-                        borderBottom: "1px solid var(--rule)",
-                        background: "transparent",
-                        cursor: i === 0 ? "not-allowed" : "pointer",
-                        opacity: i === 0 ? 0.3 : 0.7,
-                        fontSize: 9,
-                      }}
-                    >
-                      ▲
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => moveSlot(i, 1)}
-                      disabled={i === morph.morphemeOrder.length - 1}
-                      style={{
-                        padding: "0px 8px",
-                        flex: 1,
-                        border: "none",
-                        background: "transparent",
-                        cursor: i === morph.morphemeOrder.length - 1 ? "not-allowed" : "pointer",
-                        opacity: i === morph.morphemeOrder.length - 1 ? 0.3 : 0.7,
-                        fontSize: 9,
-                      }}
-                    >
-                      ▼
-                    </button>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => removeSlot(i)}
-                    style={{
-                      padding: "0px 10px",
-                      border: "none",
-                      borderLeft: "1px solid var(--rule)",
-                      background: "transparent",
-                      cursor: "pointer",
-                      opacity: 0.5,
-                      fontSize: 14,
-                      color: "var(--error)",
-                    }}
-                  >
-                    ×
-                  </button>
                 </div>
-              ))}
-
-              <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                <input
-                  type="text"
-                  placeholder="New slot..."
-                  value={newSlotText}
-                  onChange={(e) => setNewSlotText(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") addSlot(newSlotText);
-                  }}
-                  style={{
-                    padding: "6px 10px",
-                    fontFamily: "var(--mono)",
-                    fontSize: 12,
-                    border: "1px dashed var(--rule-heavy)",
-                    background: "transparent",
-                    width: 100,
-                  }}
-                />
-                {newSlotText && (
-                  <button
-                    type="button"
-                    onClick={() => addSlot(newSlotText)}
-                    className="btn btn-sm"
-                  >
-                    Add
-                  </button>
-                )}
-              </div>
+              )}
             </div>
-          </div>
-        </div>
 
-        {/* Categories per POS */}
-        <div className="panel mb16">
-          <div className="panel-head"><span className="panel-title">Grammatical categories</span></div>
-          <div className="panel-body" style={{ padding: 0 }}>
-            {POS_LIST.map((pos) => {
-              const cats = morph.categories[pos] ?? [];
-              return (
-                <div key={pos} style={{ padding: "12px 16px", borderBottom: "1px solid var(--rule)" }}>
-                  <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
-                    <span style={{ fontSize: 9, textTransform: "uppercase", letterSpacing: "0.1em", opacity: 0.5, minWidth: 56 }}>{pos}</span>
-                    {cats.map((c) => (
-                      <span
-                        key={c}
-                        style={{
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: 4,
-                          padding: "4px 8px",
-                          border: "1px solid var(--rule-heavy)",
-                          fontSize: 11,
-                          fontFamily: "var(--mono)",
-                        }}
-                      >
-                        {c}
-                        <button
-                          type="button"
-                          onClick={() => removeCategory(pos, c)}
-                          style={{
-                            background: "none",
-                            border: "none",
-                            cursor: "pointer",
-                            padding: 0,
-                            lineHeight: 1,
-                            opacity: 0.6,
-                            fontSize: 12,
-                          }}
-                        >
-                          ×
-                        </button>
-                      </span>
-                    ))}
-                    <select
-                      value=""
-                      onChange={(e) => {
-                        const v = e.target.value;
-                        if (v) addCategory(pos, v);
-                        e.target.value = "";
-                      }}
+            {/* Morpheme order slot diagram */}
+            <div className="panel mb16">
+              <div className="panel-head"><span className="panel-title">Morpheme order</span></div>
+              <div className="panel-body">
+                <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
+                  {morph.morphemeOrder.map((slot, i) => (
+                    <div
+                      key={`${slot}-${i}`}
                       style={{
-                        padding: "4px 8px",
-                        fontSize: 10,
-                        fontFamily: "var(--mono)",
-                        border: "1px solid var(--rule)",
+                        display: "flex",
+                        alignItems: "stretch",
+                        border: "1px solid var(--rule-heavy)",
                         background: "var(--paper)",
                       }}
                     >
-                      <option value="">+ add</option>
-                      {CATEGORY_OPTIONS.filter((c) => !cats.includes(c)).map((c) => (
-                        <option key={c} value={c}>{c}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Paradigm tables */}
-        <div className="panel mb16">
-          <div className="panel-head">
-            <span className="panel-title">Paradigm tables</span>
-            {paradigmKeys.length > 0 && (
-              <span className="muted small" style={{ marginLeft: 8 }}>
-                {paradigmKeys.length} paradigm{paradigmKeys.length !== 1 ? "s" : ""}
-              </span>
-            )}
-          </div>
-          <div className="panel-body">
-            {paradigmKeys.length === 0 ? (
-              <div className="muted small">No paradigms defined. Use AI Fill Paradigms to generate them.</div>
-            ) : (
-              <>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 16 }}>
-                  {paradigmKeys.map((k) => (
-                    <button
-                      key={k}
-                      onClick={() => setSelectedParadigm(k)}
-                      style={{
-                        fontFamily: "var(--mono)",
-                        fontSize: 9,
-                        letterSpacing: "0.1em",
-                        textTransform: "uppercase",
-                        padding: "4px 10px",
-                        border: "1px solid",
-                        borderColor: selectedParadigm === k ? "var(--ink)" : "var(--rule-heavy)",
-                        background: selectedParadigm === k ? "var(--ink)" : "transparent",
-                        color: selectedParadigm === k ? "var(--paper)" : "var(--ink)",
-                        cursor: "pointer",
-                      }}
-                    >
-                      {k}
-                    </button>
+                      <div
+                        style={{
+                          padding: "8px 14px",
+                          fontFamily: "var(--mono)",
+                          fontSize: 12,
+                          display: "flex",
+                          alignItems: "center",
+                        }}
+                      >
+                        {slot}
+                      </div>
+                      <div style={{ display: "flex", flexDirection: "column", borderLeft: "1px solid var(--rule)" }}>
+                        <button
+                          type="button"
+                          onClick={() => moveSlot(i, -1)}
+                          disabled={i === 0}
+                          style={{
+                            padding: "0px 8px",
+                            flex: 1,
+                            border: "none",
+                            borderBottom: "1px solid var(--rule)",
+                            background: "transparent",
+                            cursor: i === 0 ? "not-allowed" : "pointer",
+                            opacity: i === 0 ? 0.3 : 0.7,
+                            fontSize: 9,
+                          }}
+                        >
+                          ▲
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => moveSlot(i, 1)}
+                          disabled={i === morph.morphemeOrder.length - 1}
+                          style={{
+                            padding: "0px 8px",
+                            flex: 1,
+                            border: "none",
+                            background: "transparent",
+                            cursor: i === morph.morphemeOrder.length - 1 ? "not-allowed" : "pointer",
+                            opacity: i === morph.morphemeOrder.length - 1 ? 0.3 : 0.7,
+                            fontSize: 9,
+                          }}
+                        >
+                          ▼
+                        </button>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removeSlot(i)}
+                        style={{
+                          padding: "0px 10px",
+                          border: "none",
+                          borderLeft: "1px solid var(--rule)",
+                          background: "transparent",
+                          cursor: "pointer",
+                          opacity: 0.5,
+                          fontSize: 14,
+                          color: "var(--error)",
+                        }}
+                      >
+                        ×
+                      </button>
+                    </div>
                   ))}
+
+                  <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                    <input
+                      type="text"
+                      placeholder="New slot..."
+                      value={newSlotText}
+                      onChange={(e) => setNewSlotText(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") addSlot(newSlotText);
+                      }}
+                      style={{
+                        padding: "6px 10px",
+                        fontFamily: "var(--mono)",
+                        fontSize: 12,
+                        border: "1px dashed var(--rule-heavy)",
+                        background: "transparent",
+                        width: 100,
+                      }}
+                    />
+                    {newSlotText && (
+                      <button
+                        type="button"
+                        onClick={() => addSlot(newSlotText)}
+                        className="btn btn-sm"
+                      >
+                        Add
+                      </button>
+                    )}
+                  </div>
                 </div>
+              </div>
+            </div>
 
-                {grid && selectedParadigm && (
-                  <div style={{ overflowX: "auto" }}>
-                    <table className="tbl tbl-mono" style={{ minWidth: 280 }}>
-                      <thead>
-                        <tr>
-                          <th style={{ fontSize: 9, textTransform: "uppercase", opacity: 0.6 }}></th>
-                          {grid.cols.map((c) => (
-                            <th key={c} style={{ fontSize: 10, padding: "6px 8px" }}>
-                              {c || "—"}
-                            </th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {grid.rows.map((row) => (
-                          <tr key={row}>
-                            <td style={{ fontSize: 10, opacity: 0.7, padding: "6px 8px", whiteSpace: "nowrap" }}>
-                              {row}
-                            </td>
-                            {grid.cols.map((col) => {
-                              const key = col ? `${row}.${col}` : row;
-                              const val = grid.get(row, col);
-                              const isEditing = editingCell?.paradigm === selectedParadigm && editingCell?.key === key;
-                              return (
-                                <td key={col || "x"} style={{ padding: 2 }}>
-                                  {isEditing ? (
-                                    <input
-                                      autoFocus
-                                      defaultValue={val}
-                                      onBlur={(e) => setParadigmCell(selectedParadigm, key, e.target.value.trim())}
-                                      onKeyDown={(e) => {
-                                        if (e.key === "Enter") {
-                                          setParadigmCell(selectedParadigm, key, (e.target as HTMLInputElement).value.trim());
-                                        }
-                                        if (e.key === "Escape") setEditingCell(null);
-                                      }}
-                                      style={{
-                                        width: "100%",
-                                        minWidth: 48,
-                                        padding: "4px 6px",
-                                        fontFamily: "var(--mono)",
-                                        fontSize: 13,
-                                        border: "1px solid var(--ink)",
-                                      }}
-                                    />
-                                  ) : (
-                                    <div
-                                      role="button"
-                                      tabIndex={0}
-                                      onClick={() => setEditingCell({ paradigm: selectedParadigm, key })}
-                                      onKeyDown={(e) => e.key === "Enter" && setEditingCell({ paradigm: selectedParadigm, key })}
-                                      style={{
-                                        padding: "6px 8px",
-                                        minHeight: 28,
-                                        border: "1px solid var(--rule)",
-                                        cursor: "pointer",
-                                        fontStyle: "italic",
-                                      }}
-                                    >
-                                      {val || "∅"}
-                                    </div>
-                                  )}
-                                </td>
-                              );
-                            })}
-                          </tr>
+            {/* Categories per POS */}
+            <div className="panel mb16">
+              <div className="panel-head"><span className="panel-title">Grammatical categories</span></div>
+              <div className="panel-body" style={{ padding: 0 }}>
+                {POS_LIST.map((pos) => {
+                  const cats = morph.categories[pos] ?? [];
+                  return (
+                    <div key={pos} style={{ padding: "12px 16px", borderBottom: "1px solid var(--rule)" }}>
+                      <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+                        <span style={{ fontSize: 9, textTransform: "uppercase", letterSpacing: "0.1em", opacity: 0.5, minWidth: 56 }}>{pos}</span>
+                        {cats.map((c) => (
+                          <span
+                            key={c}
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: 4,
+                              padding: "4px 8px",
+                              border: "1px solid var(--rule-heavy)",
+                              fontSize: 11,
+                              fontFamily: "var(--mono)",
+                            }}
+                          >
+                            {c}
+                            <button
+                              type="button"
+                              onClick={() => removeCategory(pos, c)}
+                              style={{
+                                background: "none",
+                                border: "none",
+                                cursor: "pointer",
+                                padding: 0,
+                                lineHeight: 1,
+                                opacity: 0.6,
+                                fontSize: 12,
+                              }}
+                            >
+                              ×
+                            </button>
+                          </span>
                         ))}
-                      </tbody>
-                    </table>
-                  </div>
+                        <select
+                          value=""
+                          onChange={(e) => {
+                            const v = e.target.value;
+                            if (v) addCategory(pos, v);
+                            e.target.value = "";
+                          }}
+                          style={{
+                            padding: "4px 8px",
+                            fontSize: 10,
+                            fontFamily: "var(--mono)",
+                            border: "1px solid var(--rule)",
+                            background: "var(--paper)",
+                          }}
+                        >
+                          <option value="">+ add</option>
+                          {CATEGORY_OPTIONS.filter((c) => !cats.includes(c)).map((c) => (
+                            <option key={c} value={c}>{c}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Paradigm tables */}
+            <div className="panel mb16">
+              <div className="panel-head">
+                <span className="panel-title">Paradigm tables</span>
+                {paradigmKeys.length > 0 && (
+                  <span className="muted small" style={{ marginLeft: 8 }}>
+                    {paradigmKeys.length} paradigm{paradigmKeys.length !== 1 ? "s" : ""}
+                  </span>
                 )}
-              </>
-            )}
-          </div>
-        </div>
-
-        {/* Derivational rules with live examples */}
-        {morph.derivationalRules.length > 0 && (
-          <div className="panel mb16">
-            <div className="panel-head"><span className="panel-title">Derivational rules</span></div>
-            <div className="panel-body" style={{ padding: 0 }}>
-              {morph.derivationalRules.map((r) => {
-                const ex = getDerivExample(r);
-                return (
-                  <div
-                    key={r.id}
-                    style={{
-                      padding: "12px 16px",
-                      borderBottom: "1px solid var(--rule)",
-                    }}
-                  >
-                    <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 4 }}>{r.label}</div>
-                    <div style={{ fontSize: 11, opacity: 0.7, marginBottom: 6 }}>
-                      {r.sourcePos} → {r.targetPos} · {r.affixType}: {r.affix}
+              </div>
+              <div className="panel-body">
+                {paradigmKeys.length === 0 ? (
+                  <div className="muted small">No paradigms defined. Use AI Fill Paradigms to generate them.</div>
+                ) : (
+                  <>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 16 }}>
+                      {paradigmKeys.map((k) => (
+                        <button
+                          key={k}
+                          onClick={() => setSelectedParadigm(k)}
+                          style={{
+                            fontFamily: "var(--mono)",
+                            fontSize: 9,
+                            letterSpacing: "0.1em",
+                            textTransform: "uppercase",
+                            padding: "4px 10px",
+                            border: "1px solid",
+                            borderColor: selectedParadigm === k ? "var(--ink)" : "var(--rule-heavy)",
+                            background: selectedParadigm === k ? "var(--ink)" : "transparent",
+                            color: selectedParadigm === k ? "var(--paper)" : "var(--ink)",
+                            cursor: "pointer",
+                          }}
+                        >
+                          {k}
+                        </button>
+                      ))}
                     </div>
-                    {ex && (
-                      <div style={{ fontFamily: "var(--mono)", fontSize: 13, fontStyle: "italic" }}>
-                        <span>{ex.baseOrth}</span>
-                        <span style={{ opacity: 0.5 }}> + {ex.affixStr} </span>
-                        <span style={{ opacity: 0.6 }}>→</span>
-                        <span style={{ marginLeft: 6 }}>{ex.derivedOrth}</span>
-                        <div style={{ fontSize: 11, opacity: 0.5, marginTop: 4 }}>
-                          /{ex.baseIpa}/ + {ex.affixStr} → /{ex.derivedIpa}/
+
+                    {grid && selectedParadigm && (
+                      <div style={{ overflowX: "auto" }}>
+                        <table className="tbl tbl-mono" style={{ minWidth: 280 }}>
+                          <thead>
+                            <tr>
+                              <th style={{ fontSize: 9, textTransform: "uppercase", opacity: 0.6 }}></th>
+                              {grid.cols.map((c) => (
+                                <th key={c} style={{ fontSize: 10, padding: "6px 8px" }}>
+                                  {c || "—"}
+                                </th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {grid.rows.map((row) => (
+                              <tr key={row}>
+                                <td style={{ fontSize: 10, opacity: 0.7, padding: "6px 8px", whiteSpace: "nowrap" }}>
+                                  {row}
+                                </td>
+                                {grid.cols.map((col) => {
+                                  const key = col ? `${row}.${col}` : row;
+                                  const val = grid.get(row, col);
+                                  const isEditing = editingCell?.paradigm === selectedParadigm && editingCell?.key === key;
+                                  return (
+                                    <td key={col || "x"} style={{ padding: 2 }}>
+                                      {isEditing ? (
+                                        <input
+                                          autoFocus
+                                          defaultValue={val}
+                                          onBlur={(e) => setParadigmCell(selectedParadigm, key, e.target.value.trim())}
+                                          onKeyDown={(e) => {
+                                            if (e.key === "Enter") {
+                                              setParadigmCell(selectedParadigm, key, (e.target as HTMLInputElement).value.trim());
+                                            }
+                                            if (e.key === "Escape") setEditingCell(null);
+                                          }}
+                                          style={{
+                                            width: "100%",
+                                            minWidth: 48,
+                                            padding: "4px 6px",
+                                            fontFamily: "var(--mono)",
+                                            fontSize: 13,
+                                            border: "1px solid var(--ink)",
+                                          }}
+                                        />
+                                      ) : (
+                                        <div
+                                          role="button"
+                                          tabIndex={0}
+                                          onClick={() => setEditingCell({ paradigm: selectedParadigm, key })}
+                                          onKeyDown={(e) => e.key === "Enter" && setEditingCell({ paradigm: selectedParadigm, key })}
+                                          style={{
+                                            padding: "6px 8px",
+                                            minHeight: 28,
+                                            border: "1px solid var(--rule)",
+                                            cursor: "pointer",
+                                            fontStyle: "italic",
+                                          }}
+                                        >
+                                          {val || "∅"}
+                                        </div>
+                                      )}
+                                    </td>
+                                  );
+                                })}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* Derivational rules with live examples */}
+            {morph.derivationalRules.length > 0 && (
+              <div className="panel mb16">
+                <div className="panel-head"><span className="panel-title">Derivational rules</span></div>
+                <div className="panel-body" style={{ padding: 0 }}>
+                  {morph.derivationalRules.map((r) => {
+                    const ex = getDerivExample(r);
+                    return (
+                      <div
+                        key={r.id}
+                        style={{
+                          padding: "12px 16px",
+                          borderBottom: "1px solid var(--rule)",
+                        }}
+                      >
+                        <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 4 }}>{r.label}</div>
+                        <div style={{ fontSize: 11, opacity: 0.7, marginBottom: 6 }}>
+                          {r.sourcePos} → {r.targetPos} · {r.affixType}: {r.affix}
                         </div>
+                        {ex && (
+                          <div style={{ fontFamily: "var(--mono)", fontSize: 13, fontStyle: "italic" }}>
+                            <span>{ex.baseOrth}</span>
+                            <span style={{ opacity: 0.5 }}> + {ex.affixStr} </span>
+                            <span style={{ opacity: 0.6 }}>→</span>
+                            <span style={{ marginLeft: 6 }}>{ex.derivedOrth}</span>
+                            <div style={{ fontSize: 11, opacity: 0.5, marginTop: 4 }}>
+                              /{ex.baseIpa}/ + {ex.affixStr} → /{ex.derivedIpa}/
+                            </div>
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
-        {/* Alternation rules with before/after */}
-        {morph.alternationRules.length > 0 && (
-          <div className="panel mb16">
-            <div className="panel-head"><span className="panel-title">Alternation rules</span></div>
-            <div className="panel-body" style={{ padding: 0 }}>
-              {morph.alternationRules.map((r) => {
-                const trigger = r.trigger ?? r.description ?? "";
-                const input = r.input ?? (r as { pattern?: string }).pattern?.split("→")[0]?.trim();
-                const output = r.output ?? (r as { pattern?: string }).pattern?.split("→")[1]?.trim();
-                const ex = getAlternationExample(r);
-                return (
-                  <div
-                    key={r.id}
-                    style={{
-                      padding: "12px 16px",
-                      borderBottom: "1px solid var(--rule)",
-                    }}
-                  >
-                    <div style={{ fontSize: 11, marginBottom: 4 }}>{trigger || "Rule"}</div>
-                    <div style={{ fontSize: 11, opacity: 0.7 }}>
-                      /{input}/ → /{output}/ {r.boundary ? `(${r.boundary})` : ""}
-                    </div>
-                    {ex && (
-                      <div style={{ fontFamily: "var(--mono)", fontSize: 12, marginTop: 8 }}>
-                        <span style={{ fontStyle: "italic" }}>{ex.before}</span>
-                        <span style={{ opacity: 0.5, margin: "0 6px" }}>/{ex.beforeIpa}/</span>
-                        <span style={{ opacity: 0.6 }}> → </span>
-                        <span style={{ opacity: 0.5 }}>/{ex.afterIpa}/</span>
+            {/* Alternation rules with before/after */}
+            {morph.alternationRules.length > 0 && (
+              <div className="panel mb16">
+                <div className="panel-head"><span className="panel-title">Alternation rules</span></div>
+                <div className="panel-body" style={{ padding: 0 }}>
+                  {morph.alternationRules.map((r) => {
+                    const trigger = r.trigger ?? r.description ?? "";
+                    const input = r.input ?? (r as { pattern?: string }).pattern?.split("→")[0]?.trim();
+                    const output = r.output ?? (r as { pattern?: string }).pattern?.split("→")[1]?.trim();
+                    const ex = getAlternationExample(r);
+                    return (
+                      <div
+                        key={r.id}
+                        style={{
+                          padding: "12px 16px",
+                          borderBottom: "1px solid var(--rule)",
+                        }}
+                      >
+                        <div style={{ fontSize: 11, marginBottom: 4 }}>{trigger || "Rule"}</div>
+                        <div style={{ fontSize: 11, opacity: 0.7 }}>
+                          /{input}/ → /{output}/ {r.boundary ? `(${r.boundary})` : ""}
+                        </div>
+                        {ex && (
+                          <div style={{ fontFamily: "var(--mono)", fontSize: 12, marginTop: 8 }}>
+                            <span style={{ fontStyle: "italic" }}>{ex.before}</span>
+                            <span style={{ opacity: 0.5, margin: "0 6px" }}>/{ex.beforeIpa}/</span>
+                            <span style={{ opacity: 0.6 }}> → </span>
+                            <span style={{ opacity: 0.5 }}>/{ex.afterIpa}/</span>
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </>
         )}
       </div>
     </>

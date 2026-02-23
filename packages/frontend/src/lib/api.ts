@@ -431,6 +431,30 @@ export async function suggestInventory(lang: Language): Promise<{ language: Lang
   };
 }
 
+export async function suggestMorphology(lang: Language): Promise<{ language: Language; rationale: string }> {
+  const res = await request<{ data: { language: Language; rationale: string; fromCache: boolean } }>(
+    "POST",
+    "/suggest-morphology",
+    lang
+  );
+  return {
+    language: persistWithHistory(lang, res.data.language, "Before: Suggest morphology"),
+    rationale: res.data.rationale
+  };
+}
+
+export async function suggestSyntax(lang: Language): Promise<{ language: Language; rationale: string }> {
+  const res = await request<{ data: { language: Language; rationale: string; fromCache: boolean } }>(
+    "POST",
+    "/suggest-syntax",
+    lang
+  );
+  return {
+    language: persistWithHistory(lang, res.data.language, "Before: Suggest syntax"),
+    rationale: res.data.rationale
+  };
+}
+
 export interface FillResult {
   language: Language;
   rationale: string;
