@@ -6,7 +6,8 @@
  * proxy) and return an updated LanguageDefinition. No accounts, no login.
  */
 
-const BASE = "/v1";
+const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
+const BASE = `${API_BASE}/v1`;
 
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
@@ -454,7 +455,7 @@ export function runAutonomousPipeline(
 
   (async () => {
     try {
-      const res = await fetch(`${BASE}/autonomous`, {
+      const res = await fetch(`${API_BASE}/v1/autonomous`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ language: lang, complexity }),
