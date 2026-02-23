@@ -26,6 +26,7 @@ import {
   generateCorpus,
   checkConsistency,
 } from "./operations.js";
+import { generateWritingSystem } from "@slanger/phonology";
 
 const LEXICON_BATCH_SIZE = 5;
 const TARGET_LEXICON_SIZE = 50; // require at least 50 words before corpus
@@ -57,6 +58,20 @@ export async function runAutonomousPipeline(
 
     language = { ...language, phonology: phonResult.data.phonology };
     onEvent({ type: "operation_complete", result: phonResult });
+
+    // Procedural Writing System generation
+    if (language.phonology.writingSystem) {
+      const generatedWS = generateWritingSystem(
+        language.phonology.inventory,
+        language.phonology.writingSystem.type,
+        {
+          style: language.phonology.writingSystem.aesthetics.style,
+          complexity: language.phonology.writingSystem.aesthetics.complexity,
+          strokeDensity: language.phonology.writingSystem.aesthetics.strokeDensity,
+        }
+      );
+      language.phonology.writingSystem = generatedWS;
+    }
 
     // ── Step 2: Morphology ─────────────────────────────────────────────────────
     onEvent({ type: "pipeline_progress", step: 2, totalSteps: TOTAL_STEPS, stepName: "Building morphological paradigms" });

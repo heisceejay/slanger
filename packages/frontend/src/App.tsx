@@ -23,10 +23,11 @@ export default function App() {
   );
   const [view, setView] = useState<View>("dashboard");
   const [exportOpen, setExportOpen] = useState(false);
+  const [navCollapsed, setNavCollapsed] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const exportRef = useRef<HTMLDivElement>(null);
 
   const activeLang = languages.find((l) => l.meta.id === activeId) ?? null;
-
 
   useEffect(() => {
     if (!exportOpen) return;
@@ -37,12 +38,13 @@ export default function App() {
     return () => document.removeEventListener("click", close);
   }, [exportOpen]);
 
-  // Called when an LLM op updates a language in sessionStorage
+  // Close mobile nav when view changes
+  useEffect(() => { setMobileNavOpen(false); }, [view]);
+
   const refreshLang = useCallback((updated: Language) => {
     setLanguages((prev) => prev.map((l) => (l.meta.id === updated.meta.id ? updated : l)));
   }, []);
 
-  // Re-read from sessionStorage (used after create/delete)
   const reload = useCallback(() => {
     const fresh = listLanguages();
     setLanguages(fresh);
@@ -51,10 +53,109 @@ export default function App() {
     }
   }, [activeId]);
 
+  const navItems = [
+    { id: "dashboard" as View, icon: "◈", label: "Overview" },
+    { id: "phonology" as View, icon: "ʃ", label: "Phonology" },
+    { id: "morphology" as View, icon: "∞", label: "Morphology" },
+    { id: "syntax" as View, icon: "⊢", label: "Syntax" },
+    { id: "lexicon" as View, icon: "≋", label: "Lexicon", count: activeLang?.lexicon.length },
+    { id: "corpus" as View, icon: "§", label: "Corpus", count: activeLang?.corpus.length },
+  ];
+
+  const NavContent = () => (
+    <>
+      <div className="nav-section">
+        <div className="nav-label">{navCollapsed ? "" : "Languages"}</div>
+        {languages.map((l) => (
+          <button
+            key={l.meta.id}
+            className={`nav-item ${l.meta.id === activeId ? "active" : ""}`}
+            onClick={() => { setActiveId(l.meta.id); setView("dashboard"); }}
+            title={l.meta.name}
+          >
+            <span className="nav-icon">∴</span>
+            {!navCollapsed && <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{l.meta.name}</span>}
+          </button>
+        ))}
+        {!navCollapsed && (
+          <button
+            className="btn btn-sm"
+            style={{ width: "100%", marginTop: 8, justifyContent: "center" }}
+            onClick={() => setView("settings")}
+          >
+            + New language
+          </button>
+        )}
+        {navCollapsed && (
+          <button className="nav-item" onClick={() => setView("settings")} title="New language" style={{ justifyContent: "center" }}>
+            <span className="nav-icon">+</span>
+          </button>
+        )}
+      </div>
+
+      <div className="nav-divider" />
+
+      {activeId && (
+        <div className="nav-section">
+          {!navCollapsed && <div className="nav-label">Editor</div>}
+          {navItems.map(({ id, icon, label, count }) => (
+            <button
+              key={id}
+              className={`nav-item ${view === id ? "active" : ""}`}
+              onClick={() => setView(id)}
+              title={label}
+            >
+              <span className="nav-icon">{icon}</span>
+              {!navCollapsed && label}
+              {!navCollapsed && count !== undefined && <span className="nav-count">{count}</span>}
+            </button>
+          ))}
+        </div>
+      )}
+
+      <div style={{ marginTop: "auto" }}>
+        <div className="nav-divider" />
+        <div className="nav-section">
+          <button
+            className={`nav-item ${view === "settings" ? "active" : ""}`}
+            onClick={() => setView("settings")}
+            title="Settings"
+          >
+            <span className="nav-icon">◎</span>
+            {!navCollapsed && "Settings"}
+          </button>
+        </div>
+      </div>
+    </>
+  );
+
   return (
-    <div className="shell">
+    <div className={`shell ${navCollapsed ? "nav-collapsed" : ""}`}>
+      {/* Mobile overlay */}
+      {mobileNavOpen && (
+        <div className="mobile-nav-overlay" onClick={() => setMobileNavOpen(false)} />
+      )}
+
       {/* Topbar */}
       <header className="topbar">
+        {/* Mobile hamburger */}
+        <button
+          className="mobile-menu-btn"
+          onClick={() => setMobileNavOpen((o) => !o)}
+          aria-label="Toggle navigation"
+        >
+          ☰
+        </button>
+
+        {/* Desktop collapse toggle */}
+        <button
+          className="nav-collapse-btn"
+          onClick={() => setNavCollapsed((c) => !c)}
+          title={navCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+        >
+          {navCollapsed ? "›" : "‹"}
+        </button>
+
         <span className="topbar-wordmark">Slanger</span>
         {activeLang && (
           <>
@@ -113,73 +214,14 @@ export default function App() {
         </div>
       </header>
 
-      {/* Nav */}
-      <nav className="nav">
-        <div className="nav-section">
-          <div className="nav-label">Languages</div>
-          {languages.map((l) => (
-            <button
-              key={l.meta.id}
-              className={`nav-item ${l.meta.id === activeId ? "active" : ""}`}
-              onClick={() => { setActiveId(l.meta.id); setView("dashboard"); }}
-            >
-              <span className="nav-icon">∴</span>
-              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                {l.meta.name}
-              </span>
-            </button>
-          ))}
-          <button
-            className="btn btn-sm"
-            style={{ width: "100%", marginTop: 8, justifyContent: "center" }}
-            onClick={() => setView("settings")}
-          >
-            + New language
-          </button>
-        </div>
+      {/* Sidebar nav — desktop */}
+      <nav className={`nav ${navCollapsed ? "nav-collapsed" : ""}`}>
+        <NavContent />
+      </nav>
 
-        <div className="nav-divider" />
-
-        {activeId && (
-          <div className="nav-section">
-            <div className="nav-label">Editor</div>
-            {(
-              [
-                { id: "dashboard", icon: "◈", label: "Overview" },
-                { id: "phonology", icon: "ʃ", label: "Phonology" },
-                { id: "morphology", icon: "∞", label: "Morphology" },
-                { id: "syntax", icon: "⊢", label: "Syntax" },
-                { id: "lexicon", icon: "≋", label: "Lexicon", count: activeLang?.lexicon.length },
-                { id: "corpus", icon: "§", label: "Corpus", count: activeLang?.corpus.length },
-              ] as Array<{ id: View; icon: string; label: string; count?: number }>
-            ).map(({ id, icon, label, count }) => (
-              <button
-                key={id}
-                className={`nav-item ${view === id ? "active" : ""}`}
-                onClick={() => setView(id)}
-              >
-                <span className="nav-icon">{icon}</span>
-                {label}
-                {count !== undefined && <span className="nav-count">{count}</span>}
-              </button>
-            ))}
-          </div>
-        )}
-
-
-
-        <div style={{ marginTop: "auto" }}>
-          <div className="nav-divider" />
-          <div className="nav-section">
-            <button
-              className={`nav-item ${view === "settings" ? "active" : ""}`}
-              onClick={() => setView("settings")}
-            >
-              <span className="nav-icon">◎</span>
-              Settings
-            </button>
-          </div>
-        </div>
+      {/* Sidebar nav — mobile slide-in */}
+      <nav className={`nav mobile-nav ${mobileNavOpen ? "mobile-nav-open" : ""}`}>
+        <NavContent />
       </nav>
 
       {/* Main content */}
@@ -206,7 +248,6 @@ export default function App() {
             {view === "syntax" && <SyntaxView lang={activeLang} onUpdated={refreshLang} />}
             {view === "lexicon" && <LexiconView lang={activeLang} onUpdated={refreshLang} />}
             {view === "corpus" && <CorpusView lang={activeLang} onUpdated={refreshLang} />}
-
           </>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", gap: 12 }}>

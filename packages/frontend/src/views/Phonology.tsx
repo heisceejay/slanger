@@ -202,11 +202,11 @@ export function PhonologyView({ lang, onUpdated }: { lang: Language; onUpdated: 
                                       style={{
                                         fontFamily: "var(--mono)", fontSize: 14, width: 28, height: 28,
                                         display: "flex", alignItems: "center", justifyContent: "center",
-                                        background: active ? "var(--accent)" : "transparent",
+                                        background: active ? "var(--ink)" : "transparent",
                                         color: active ? "var(--paper)" : "var(--ink)",
-                                        border: active ? "1px solid var(--accent)" : "1px solid transparent",
+                                        border: active ? "2px solid var(--ink)" : "1px dashed rgba(10,10,10,0.3)",
                                         cursor: "pointer",
-                                        borderRadius: 2,
+                                        borderRadius: "50%",
                                         transition: "var(--transition)",
                                         userSelect: "none",
                                       }}
@@ -266,7 +266,7 @@ export function PhonologyView({ lang, onUpdated }: { lang: Language; onUpdated: 
                     <div className="muted small mb8" style={{ letterSpacing: "0.1em", textTransform: "uppercase" }}>Vowels</div>
                     <div className="phoneme-chips">
                       {phon.inventory.vowels.map(v => (
-                        <span key={v} className="phoneme-chip active" onClick={() => togglePhoneme(v, "vowels")} style={{ cursor: "pointer" }} title="Click to remove">{v}</span>
+                        <span key={v} className="phoneme-chip active" onClick={() => togglePhoneme(v, "vowels")} style={{ cursor: "pointer", borderRadius: "50%", border: "2px solid var(--ink)" }} title="Click to remove">{v}</span>
                       ))}
                       {phon.inventory.vowels.length === 0 && <span className="muted small">None defined</span>}
                     </div>
