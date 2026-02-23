@@ -24,7 +24,8 @@ You create corpus samples for constructed languages. Each sample must:
 4. Produce grammatically complete interlinear glosses in Leipzig glossing convention.
 5. Include IPA transcription (only allowed consonants and vowels from the phonology).
 6. English translation must be in SVO order for clarity, even if the conlang has different word order.
-7. Be appropriate for the specified register.`;
+7. Be appropriate for the specified register.
+8. If the language uses TEMPLATIC morphology: the 'morphemes' array should contain the root consonants (e.g. "k-t-b") and the 'glosses' should reflect the root meaning and the vocalic pattern meaning.`;
 
 export function buildCorpusUserMessage(req: GenerateCorpusRequest, retryErrors?: string[]): string {
   const retryBlock = retryErrors?.length
@@ -61,6 +62,15 @@ ${paradigmSample}
 PHONOLOGY:
 - Consonants: ${req.language.phonology.inventory.consonants.join(" ")}
 - Vowels: ${req.language.phonology.inventory.vowels.join(" ")}
+${req.language.phonology.writingSystem ? `- Writing System: ${req.language.phonology.writingSystem.type} (${JSON.stringify(req.language.phonology.writingSystem.aesthetics)})` : ""}
+
+${req.language.morphology.templatic?.enabled
+      ? `TEMPLATIC MORPHOLOGY:
+- Roots are consonant clusters (e.g. "k-t-b").
+- Inflection happens by inserting vowels per templates: ${req.language.morphology.templatic.rootTemplates.join(", ")}.
+- Vocalisms: ${JSON.stringify(req.language.morphology.templatic.vocaloidPatterns)}`
+      : ""
+    }
 
 Generate exactly ${req.count} sample(s) following THIS JSON structure:
 {
@@ -291,9 +301,11 @@ PHONOLOGY:
 - Vowels (${lang.phonology.inventory.vowels.length}): ${lang.phonology.inventory.vowels.join(" ")}
 - Suprasegmentals: tone=${lang.phonology.suprasegmentals.hasLexicalTone}, stress=${lang.phonology.suprasegmentals.hasPhonemicStress}
 - Templates: ${lang.phonology.phonotactics.syllableTemplates.join(", ")}
+${lang.phonology.writingSystem ? `- Writing System: ${lang.phonology.writingSystem.type}` : ""}
 
 MORPHOLOGY:
 - Typology: ${lang.morphology.typology}
+- Templatic: ${lang.morphology.templatic?.enabled ? `YES (${lang.morphology.templatic.rootTemplates.join(", ")})` : "NO"}
 - Categories: ${JSON.stringify(lang.morphology.categories)}
 - Paradigm keys: ${Object.keys(lang.morphology.paradigms).join(", ")}
 - Morpheme order: ${lang.morphology.morphemeOrder.join(" → ")}

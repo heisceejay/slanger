@@ -51,6 +51,8 @@ export async function runAutonomousPipeline(
       preset: req.preset,
 
       tags: req.tags,
+      templaticEnabled: !!req.advancedFeatures?.templaticMorphology,
+      writingSystemType: req.advancedFeatures?.complexWritingSystem ? "abugida" : "alphabet",
     }, language);
 
     language = { ...language, phonology: phonResult.data.phonology };
@@ -105,7 +107,7 @@ export async function runAutonomousPipeline(
         targetSlots: batchSlots,
         batchSize: LEXICON_BATCH_SIZE,
         existingOrthForms: language.lexicon.map(e => e.orthographicForm),
-  
+
         naturalismScore: req.naturalismScore,
         tags: req.tags,
       }, language);
@@ -212,6 +214,12 @@ function buildSkeleton(req: AutonomousPipelineRequest, now: string): LanguageDef
       morphemeOrder: ["root"],
       derivationalRules: [],
       alternationRules: [],
+      templatic: {
+        enabled: req.advancedFeatures?.templaticMorphology ?? false,
+        rootTemplates: req.advancedFeatures?.templaticMorphology ? ["CVCVC"] : [],
+        vocaloidPatterns: {},
+        slots: req.advancedFeatures?.templaticMorphology ? ["root", "aspect", "tense", "person.number"] : []
+      }
     },
     syntax: {
       wordOrder: "SOV",
@@ -219,7 +227,7 @@ function buildSkeleton(req: AutonomousPipelineRequest, now: string): LanguageDef
       phraseStructure: {
         NP: [{ label: "Det", optional: true, repeatable: false }, { label: "Adj", optional: true, repeatable: true }, { label: "N", optional: false, repeatable: false }],
         VP: [{ label: "V", optional: false, repeatable: false }, { label: "NP", optional: true, repeatable: false }],
-        S:  [{ label: "NP", optional: false, repeatable: false }, { label: "VP", optional: false, repeatable: false }],
+        S: [{ label: "NP", optional: false, repeatable: false }, { label: "VP", optional: false, repeatable: false }],
       },
       clauseTypes: ["declarative", "polar-interrogative", "imperative"],
       headedness: "head-marking",

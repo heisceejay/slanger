@@ -72,6 +72,24 @@ export const LANGUAGE_DEFINITION_SCHEMA = {
             hasVowelLength: { type: "boolean" },
             hasPhonemicNasalization: { type: "boolean" }
           }
+        },
+        writingSystem: {
+          type: "object",
+          required: ["type", "mappings", "aesthetics", "glyphs"],
+          properties: {
+            type: { type: "string", enum: ["alphabet", "abjad", "abugida", "syllabary", "logographic", "hybrid"] },
+            mappings: { type: "object", additionalProperties: { type: "array", items: { type: "string" } } },
+            aesthetics: {
+              type: "object",
+              required: ["complexity", "style", "strokeDensity"],
+              properties: {
+                complexity: { type: "number", minimum: 0, maximum: 1 },
+                style: { type: "string", enum: ["angular", "rounded", "blocky", "cursive"] },
+                strokeDensity: { type: "number", minimum: 0, maximum: 1 }
+              }
+            },
+            glyphs: { type: "object", additionalProperties: { type: "string" } }
+          }
         }
       }
     },
@@ -88,7 +106,17 @@ export const LANGUAGE_DEFINITION_SCHEMA = {
         paradigms: { type: "object" },
         morphemeOrder: { type: "array", items: { type: "string" } },
         derivationalRules: { type: "array" },
-        alternationRules: { type: "array" }
+        alternationRules: { type: "array" },
+        templatic: {
+          type: "object",
+          required: ["enabled", "rootTemplates", "vocaloidPatterns", "slots"],
+          properties: {
+            enabled: { type: "boolean" },
+            rootTemplates: { type: "array", items: { type: "string" } },
+            vocaloidPatterns: { type: "object", additionalProperties: { type: "string" } },
+            slots: { type: "array", items: { type: "string" } }
+          }
+        }
       }
     },
     syntax: {
@@ -136,7 +164,36 @@ export const LANGUAGE_DEFINITION_SCHEMA = {
         }
       }
     },
-    corpus: { type: "array" },
+    corpus: {
+      type: "array",
+      items: {
+        type: "object",
+        required: ["id", "register", "orthographicText", "ipaText", "translation", "interlinearGloss", "generatedAt"],
+        properties: {
+          id: { type: "string" },
+          register: { type: "string", enum: ["formal", "informal", "ritual", "technical", "narrative"] },
+          orthographicText: { type: "string" },
+          ipaText: { type: "string" },
+          translation: { type: "string" },
+          interlinearGloss: {
+            type: "array",
+            items: {
+              type: "object",
+              required: ["word", "morphemes", "glosses"],
+              properties: {
+                word: { type: "string" },
+                morphemes: { type: "array", items: { type: "string" } },
+                glosses: { type: "array", items: { type: "string" } },
+                pos: { type: "string", enum: ["noun", "verb", "adjective", "adverb", "particle", "pronoun", "numeral", "other"] },
+                grammaticalFeatures: { type: "object", additionalProperties: { type: "string" } }
+              }
+            }
+          },
+          prompt: { type: "string" },
+          generatedAt: { type: "string", format: "date-time" }
+        }
+      }
+    },
     validationState: {
       type: "object",
       required: ["lastRun", "errors", "warnings"],

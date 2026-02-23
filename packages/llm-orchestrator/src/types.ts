@@ -74,6 +74,10 @@ export interface SuggestInventoryRequest {
   tags: string[];
   /** Optional prior inventory to build on */
   existingInventory?: Partial<PhonologyConfig["inventory"]>;
+  /** Whether to enable non-linear/templatic morphology */
+  templaticEnabled?: boolean;
+  /** Desired writing system type */
+  writingSystemType?: "alphabet" | "abjad" | "abugida" | "syllabary" | "logographic" | "hybrid";
 }
 
 export interface SuggestInventoryResponse {
@@ -215,6 +219,11 @@ export interface AutonomousPipelineRequest {
   complexity: number; // 0–1
   /** Optional seed for reproducibility (passed as system context) */
   seed?: string;
+  /** Phase toggles for advanced features */
+  advancedFeatures?: {
+    templaticMorphology: boolean;
+    complexWritingSystem: boolean;
+  };
 }
 
 export interface AutonomousPipelineResult {

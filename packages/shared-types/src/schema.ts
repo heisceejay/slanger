@@ -44,10 +44,28 @@ export type LanguagePreset = "naturalistic" | "experimental";
 export interface PhonologyConfig {
   inventory: PhonemeInventory;
   phonotactics: Phonotactics;
-  /** Maps IPA phoneme symbol → orthographic grapheme */
+  /** Maps IPA phoneme symbol → orthographic grapheme (simple) */
   orthography: Record<string, string>;
+  /** Optional advanced writing system configuration */
+  writingSystem?: WritingSystemConfig;
   /** Optional suprasegmental features */
   suprasegmentals: Suprasegmentals;
+}
+
+export type WritingSystemType = "alphabet" | "abjad" | "abugida" | "syllabary" | "logographic" | "hybrid";
+
+export interface WritingSystemConfig {
+  type: WritingSystemType;
+  /** Mapping IPA -> Grapheme(s). For syllabaries, keys are syllable strings. */
+  mappings: Record<string, string[]>;
+  /** Aesthetic parameters for glyph generation */
+  aesthetics: {
+    complexity: number; // 0-1
+    style: "angular" | "rounded" | "blocky" | "cursive";
+    strokeDensity: number;
+  };
+  /** Abstract glyph descriptions or references for visualization */
+  glyphs: Record<string, string>;
 }
 
 export interface PhonemeInventory {
@@ -119,6 +137,18 @@ export interface MorphologyConfig {
   derivationalRules: DerivationalRule[];
   /** Morphophonological alternation rules */
   alternationRules: AlternationRule[];
+  /** Optional non-linear/templatic configuration */
+  templatic?: TemplaticConfig;
+}
+
+export interface TemplaticConfig {
+  enabled: boolean;
+  /** Root templates like "C-C-C" */
+  rootTemplates: string[];
+  /** Vocalism patterns like "a-i" for specific categories */
+  vocaloidPatterns: Record<string, string>;
+  /** Template slots for mapping morphemes to positions */
+  slots: string[];
 }
 
 export type PartOfSpeech = "noun" | "verb" | "adjective" | "adverb" | "particle" | "pronoun" | "numeral" | "other";
@@ -424,6 +454,10 @@ export interface InterlinearLine {
   morphemes: string[];
   /** Gloss for each morpheme */
   glosses: string[];
+  /** Part of speech of this word in context */
+  pos?: PartOfSpeech;
+  /** Features applied to this word, e.g. { "case": "nominative" } */
+  grammaticalFeatures?: Record<string, string>;
 }
 
 // ─── Validation State ────────────────────────────────────────────────────────
@@ -436,7 +470,7 @@ export interface ValidationState {
   warnings: ValidationIssue[];
 }
 
-export type ValidationModule = "phonology" | "morphology" | "syntax" | "lexicon" | "cross-module";
+export type ValidationModule = "phonology" | "morphology" | "syntax" | "lexicon" | "cross-module" | "writing-system" | "pragmatics" | "semantics";
 export type ValidationSeverity = "error" | "warning";
 
 export interface ValidationIssue {

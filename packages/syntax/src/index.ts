@@ -5,16 +5,16 @@
  */
 import type {
   SyntaxConfig, WordOrder, AlignmentSystem, ClauseType,
-  LexicalEntry, CorpusSample, InterlinearLine, Register, MorphologyConfig
+  LexicalEntry, CorpusSample, InterlinearLine, Register, MorphologyConfig, PartOfSpeech
 } from "@slanger/shared-types";
 import type { ParadigmTable } from "@slanger/morphology";
 
 export interface SyntaxValidationIssue {
-  ruleId: string; severity: "error"|"warning"; message: string; entityRef?: string;
+  ruleId: string; severity: "error" | "warning"; message: string; entityRef?: string;
 }
 
 export interface SentenceSlot {
-  role: "subject"|"object"|"verb"|"adverb"|"adposition"|"modifier";
+  role: "subject" | "object" | "verb" | "adverb" | "adposition" | "modifier";
   entry: LexicalEntry;
   inflectedOrth: string;
   inflectedIpa: string;
@@ -33,36 +33,87 @@ export interface GeneratedSentence {
 
 export function validateSyntaxConfig(config: SyntaxConfig): SyntaxValidationIssue[] {
   const issues: SyntaxValidationIssue[] = [];
-  const validOrders: WordOrder[] = ["SOV","SVO","VSO","VOS","OVS","OSV","free"];
+  const validOrders: WordOrder[] = ["SOV", "SVO", "VSO", "VOS", "OVS", "OSV", "free"];
   if (!validOrders.includes(config.wordOrder)) {
-    issues.push({ruleId:"SYN_001",severity:"error",message:`Invalid word order: ${config.wordOrder}.`});
+    issues.push({ ruleId: "SYN_001", severity: "error", message: `Invalid word order: ${config.wordOrder}.` });
   }
   const validAlignments: AlignmentSystem[] = [
-    "nominative-accusative","ergative-absolutive","tripartite","split-ergative","active-stative"
+    "nominative-accusative", "ergative-absolutive", "tripartite", "split-ergative", "active-stative"
   ];
   if (!validAlignments.includes(config.alignment)) {
-    issues.push({ruleId:"SYN_002",severity:"error",message:`Invalid alignment: ${config.alignment}.`});
+    issues.push({ ruleId: "SYN_002", severity: "error", message: `Invalid alignment: ${config.alignment}.` });
   }
   if (config.clauseTypes.length === 0) {
-    issues.push({ruleId:"SYN_003",severity:"error",message:"At least one clause type must be defined."});
+    issues.push({ ruleId: "SYN_003", severity: "error", message: "At least one clause type must be defined." });
   }
   if (!config.clauseTypes.includes("declarative")) {
-    issues.push({ruleId:"SYN_004",severity:"warning",message:"Languages typically have at least a declarative clause type."});
+    issues.push({ ruleId: "SYN_004", severity: "warning", message: "Languages typically have at least a declarative clause type." });
   }
   // Validate phrase structure rules reference known constituents
-  const knownLabels = new Set(["NP","VP","PP","CP","DP","AP","S","N","V","Det","Adj","Adv","P","C","T"]);
+  const knownLabels = new Set(["NP", "VP", "PP", "CP", "DP", "AP", "S", "N", "V", "Det", "Adj", "Adv", "P", "C", "T"]);
   for (const [constituent, slots] of Object.entries(config.phraseStructure)) {
     for (const slot of slots) {
       if (!knownLabels.has(slot.label) && !Object.keys(config.phraseStructure).includes(slot.label)) {
         issues.push({
-          ruleId:"SYN_010",severity:"warning",
-          message:`Phrase structure slot "${slot.label}" in ${constituent} is not a recognized constituent label.`,
-          entityRef:constituent
+          ruleId: "SYN_010", severity: "warning",
+          message: `Phrase structure slot "${slot.label}" in ${constituent} is not a recognized constituent label.`,
+          entityRef: constituent
         });
       }
     }
   }
   return issues;
+}
+
+/**
+ * Validates that corpus samples respect the defined syntax rules (basic word order check).
+ */
+export function validateCorpusConsistency(corpus: CorpusSample[], config: SyntaxConfig): SyntaxValidationIssue[] {
+  const issues: SyntaxValidationIssue[] = [];
+  if (config.wordOrder === "free") return issues;
+
+  for (const sample of corpus) {
+    if (!sample.interlinearGloss || sample.interlinearGloss.length === 0) continue;
+
+    const posSequence = sample.interlinearGloss.map(line => line.pos).filter((p): p is PartOfSpeech => !!p);
+    const nouns = posSequence.filter(p => p === "noun" || p === "pronoun");
+    const verbs = posSequence.filter(p => p === "verb");
+
+    if (nouns.length >= 1 && verbs.length >= 1) {
+      const firstNounIdx = posSequence.findIndex(p => p === "noun" || p === "pronoun");
+      const lastNounIdx = findLastIndex(posSequence, p => p === "noun" || p === "pronoun");
+      const firstVerbIdx = posSequence.findIndex(p => p === "verb");
+
+      // Extremely basic heuristic checks based on word order
+      if (config.wordOrder === "SOV" || config.wordOrder === "SVO") {
+        // S usually comes first (first noun before verb)
+        if (firstNounIdx > firstVerbIdx && firstVerbIdx !== -1) {
+          issues.push({
+            ruleId: "SYN_020", severity: "warning",
+            message: `Corpus sample "${sample.id}" might violate ${config.wordOrder} order: Verb found before Subject/Object.`,
+            entityRef: sample.id
+          });
+        }
+      } else if (config.wordOrder === "VSO" || config.wordOrder === "VOS") {
+        // V usually comes first
+        if (firstVerbIdx > firstNounIdx && firstNounIdx !== -1) {
+          issues.push({
+            ruleId: "SYN_021", severity: "warning",
+            message: `Corpus sample "${sample.id}" might violate ${config.wordOrder} order: Subject/Object found before Verb.`,
+            entityRef: sample.id
+          });
+        }
+      }
+    }
+  }
+  return issues;
+}
+
+function findLastIndex<T>(arr: T[], predicate: (val: T) => boolean): number {
+  for (let i = arr.length - 1; i >= 0; i--) {
+    if (predicate(arr[i]!)) return i;
+  }
+  return -1;
 }
 
 // ─── Sentence generation ──────────────────────────────────────────────────────
@@ -103,7 +154,7 @@ export function generateExampleSentence(
   });
 
   const orthWords = slots.map(s => s.inflOrth);
-  const ipaWords = slots.map(s => s.inflIpa.replace(/^\/|\/$/g,""));
+  const ipaWords = slots.map(s => s.inflIpa.replace(/^\/|\/$/g, ""));
 
   // Apply clause-type transformation
   const finalOrth = applyClauseTransform(orthWords, clauseType, config);
@@ -144,11 +195,11 @@ export function renderInterlinear(sample: CorpusSample): string {
 /**
  * Get the ordering of S, V, O positions for a given word order.
  */
-export function getConstituencyOrder(wordOrder: WordOrder): Array<"S"|"V"|"O"> {
-  const orderMap: Record<WordOrder, Array<"S"|"V"|"O">> = {
-    SOV: ["S","O","V"], SVO: ["S","V","O"], VSO: ["V","S","O"],
-    VOS: ["V","O","S"], OVS: ["O","V","S"], OSV: ["O","S","V"],
-    free: ["S","V","O"], // default for free
+export function getConstituencyOrder(wordOrder: WordOrder): Array<"S" | "V" | "O"> {
+  const orderMap: Record<WordOrder, Array<"S" | "V" | "O">> = {
+    SOV: ["S", "O", "V"], SVO: ["S", "V", "O"], VSO: ["V", "S", "O"],
+    VOS: ["V", "O", "S"], OVS: ["O", "V", "S"], OSV: ["O", "S", "V"],
+    free: ["S", "V", "O"], // default for free
   };
   return orderMap[wordOrder];
 }
@@ -156,9 +207,9 @@ export function getConstituencyOrder(wordOrder: WordOrder): Array<"S"|"V"|"O"> {
 // ─── Internals ────────────────────────────────────────────────────────────────
 
 interface SlotInput {
-  subject: {entry:LexicalEntry; inflOrth:string; inflIpa:string};
-  verb: {entry:LexicalEntry; inflOrth:string; inflIpa:string};
-  object: {entry:LexicalEntry; inflOrth:string; inflIpa:string} | null;
+  subject: { entry: LexicalEntry; inflOrth: string; inflIpa: string };
+  verb: { entry: LexicalEntry; inflOrth: string; inflIpa: string };
+  object: { entry: LexicalEntry; inflOrth: string; inflIpa: string } | null;
 }
 
 function buildSlotOrder(wordOrder: WordOrder, inputs: SlotInput) {
@@ -177,7 +228,7 @@ function buildSlotOrder(wordOrder: WordOrder, inputs: SlotInput) {
 
 function addClauseMarker(verbForm: string, clauseType: ClauseType): string {
   // Simple suffix markers for different clause types (naturalistic approximation)
-  const markers: Partial<Record<ClauseType,string>> = {
+  const markers: Partial<Record<ClauseType, string>> = {
     "polar-interrogative": "-ka",
     "imperative": "-ve",
     "exclamative": "-ra",
@@ -197,7 +248,7 @@ function applyClauseTransform(words: string[], clauseType: ClauseType, config: S
   }
 }
 
-function buildTranslation(subj: LexicalEntry, verb: LexicalEntry, obj: LexicalEntry|null, clauseType: ClauseType): string {
+function buildTranslation(subj: LexicalEntry, verb: LexicalEntry, obj: LexicalEntry | null, clauseType: ClauseType): string {
   const s = subj.glosses[0] ?? "someone";
   const v = verb.glosses[0] ?? "does";
   const o = obj?.glosses[0];

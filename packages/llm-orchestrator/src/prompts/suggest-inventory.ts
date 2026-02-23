@@ -43,8 +43,17 @@ export function buildUserMessage(req: SuggestInventoryRequest, retryErrors?: str
     : `NATURALISTIC MODE (naturalismScore=${naturalism.toFixed(2)}):
 - Model after attested natural language patterns
 - Inventory size: ${Math.round(8 + naturalism * 22)} consonants, ${Math.round(3 + naturalism * 7)} vowels (approximate)
-- Common syllable shapes: CV, CVC at minimum
 - Standard tone/stress if any`;
+
+  const writingSystemGuidance = req.writingSystemType
+    ? `\nWRITING SYSTEM: Generate a "${req.writingSystemType}" mapping in the 'orthography' field.`
+    : "";
+
+  const templaticGuidance = req.templaticEnabled
+    ? `\nMORPHOLOGY: This language uses TEMPLATIC (root-and-pattern) morphology.
+- Ensure the phoneme inventory supports a clear consonant-vowel distinction.
+- Provide a 'rationale' that mentions the templatic structure.`
+    : "";
 
   const retryBlock = retryErrors?.length
     ? `\n[PREVIOUS ATTEMPT ERRORS — FIX THESE]\n${retryErrors.map((e, i) => `${i + 1}. ${e}`).join("\n")}\n`
@@ -54,7 +63,7 @@ export function buildUserMessage(req: SuggestInventoryRequest, retryErrors?: str
 Design a complete phonology system for a constructed language with these parameters:
 - Name hint: ${req.world ? `set in "${req.world}"` : "no specific world"}
 - Tags: ${req.tags.length ? req.tags.join(", ") : "none specified"}
-${typologicalGuidance}
+${typologicalGuidance}${writingSystemGuidance}${templaticGuidance}
 ${req.existingInventory ? `\nExisting inventory to build on:\n${JSON.stringify(req.existingInventory, null, 2)}` : ""}
 
 Respond with ONLY this JSON structure (no text outside JSON):
@@ -80,6 +89,16 @@ Respond with ONLY this JSON structure (no text outside JSON):
       "hasPhonemicStress": false,
       "hasVowelLength": false,
       "hasPhonemicNasalization": false
+    },
+    "writingSystem": {
+      "type": "${req.writingSystemType || "alphabet"}",
+      "mappings": {},
+      "aesthetics": {
+        "complexity": 0.5,
+        "style": "angular",
+        "strokeDensity": 0.5
+      },
+      "glyphs": {}
     }
   },
   "rationale": "<2-3 sentences explaining typological choices>"
@@ -138,6 +157,14 @@ export function parseResponse(raw: string): SuggestInventoryResponse {
       hasVowelLength: phon.suprasegmentals?.hasVowelLength ?? false,
       hasPhonemicNasalization: phon.suprasegmentals?.hasPhonemicNasalization ?? false,
     },
+    writingSystem: phon.writingSystem ?? {
+      type: "alphabet",
+      mappings: Object.fromEntries(
+        Object.entries(phon.orthography || {}).map(([k, v]) => [k, [v]])
+      ),
+      aesthetics: { complexity: 0.5, style: "angular", strokeDensity: 0.5 },
+      glyphs: {}
+    }
   };
 
   return {

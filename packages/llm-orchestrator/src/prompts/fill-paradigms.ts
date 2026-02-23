@@ -55,13 +55,19 @@ MORPHEME ORDER: ${req.morphology.morphemeOrder.join(" → ")}
 INSTRUCTIONS:
 - For ${req.morphology.typology} morphology:
 ${req.morphology.typology === "agglutinative"
-    ? "  * Each paradigm should have one meaning per affix (clear segmentation)\n  * Affixes should be short (1-3 phonemes) and phonologically regular"
-    : req.morphology.typology === "fusional"
-    ? "  * Paradigm cells can bundle multiple categories (e.g. tense+person+number)\n  * Allow some irregularity and allomorphy"
-    : req.morphology.typology === "polysynthetic"
-    ? "  * Allow long, complex morpheme chains\n  * Verbs can incorporate nominal arguments"
-    : "  * Minimal affixation; use separate particles or word order instead"
-}
+      ? "  * Each paradigm should have one meaning per affix (clear segmentation)\n  * Affixes should be short (1-3 phonemes) and phonologically regular"
+      : req.morphology.typology === "fusional"
+        ? "  * Paradigm cells can bundle multiple categories (e.g. tense+person+number)\n  * Allow some irregularity and allomorphy"
+        : req.morphology.typology === "polysynthetic"
+          ? "  * Allow long, complex morpheme chains\n  * Verbs can incorporate nominal arguments"
+          : "  * Minimal affixation; use separate particles or word order instead"
+    }
+${req.morphology.templatic?.enabled
+      ? `- For TEMPLATIC morphology:
+  * Instead of simple affixes, provide 'vocaloidPatterns' (e.g. "a-i") for each category combination.
+  * Define 'rootTemplates' (e.g. "CVCVC") that dictate how consonants and vowels interleave.`
+      : ""
+    }
 - ALL affixes must use ONLY the phoneme inventory: ${consonants}, ${vowels}
 - Produce paradigm keys in format: <pos>_<category> (e.g. "noun_case", "verb_tense")
 - For person+number combined: use cells like "1sg", "2sg", "3sg", "1pl", "2pl", "3pl"
@@ -77,7 +83,13 @@ Respond with ONLY this JSON structure:
     },
     "morphemeOrder": ${JSON.stringify(req.morphology.morphemeOrder)},
     "derivationalRules": ${JSON.stringify(req.morphology.derivationalRules)},
-    "alternationRules": ${JSON.stringify(req.morphology.alternationRules)}
+    "alternationRules": ${JSON.stringify(req.morphology.alternationRules)},
+    "templatic": {
+      "enabled": ${req.morphology.templatic?.enabled ?? false},
+      "rootTemplates": ["CVCVC"],
+      "vocaloidPatterns": { "verb.tense.present": "a-i", ... },
+      "slots": ["root", "tense"]
+    }
   },
   "rationale": "<explanation of typological choices>"
 }`.trim();
@@ -101,6 +113,12 @@ export function parseResponse(raw: string): FillParadigmGapsResponse {
     morphemeOrder: m.morphemeOrder,
     derivationalRules: m.derivationalRules ?? [],
     alternationRules: m.alternationRules ?? [],
+    templatic: m.templatic ?? {
+      enabled: false,
+      rootTemplates: [],
+      vocaloidPatterns: {},
+      slots: []
+    }
   };
 
   return { morphology: complete, rationale: parsed.rationale ?? "" };

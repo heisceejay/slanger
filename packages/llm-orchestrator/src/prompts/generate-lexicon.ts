@@ -72,6 +72,14 @@ Do NOT use ɛ, ɔ, ɑ, ɪ, ʊ, ə, æ, ʒ, ʃ, θ, ð, ŋ, etc. unless they appe
 MORPHOLOGY: typology ${req.morphology.typology}. Follow the language's inflectional categories and paradigm structure (e.g. noun cases, verb agreement) when generating words; root forms should be compatible with the morphology.
 NATURALISM SCORE: ${req.naturalismScore.toFixed(2)} (0=experimental, 1=naturalistic)
 TAGS: ${req.tags.join(", ") || "none"}
+${req.morphology.templatic?.enabled
+      ? `\nTEMPLATIC MORPHOLOGY ENABLED:
+- For this language, roots are NOT whole words.
+- 'phonologicalForm' MUST be a sequence of consonants representing the root (e.g. "k-t-b").
+- 'orthographicForm' should be the orthographic representation of that root.
+- The root must have exactly as many consonants as the 'rootTemplates' expect (usualy 3).`
+      : ""
+    }
 ${worldNote}
 ${existingBlock}
 
