@@ -346,7 +346,7 @@ export function SyntaxView({
               <div className="muted small mb16">No phrase structure defined</div>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 16 }}>
-                {Object.entries(editingStructure).map(([phraseType, slots]: [string, PhraseStructureSlot[]]) => (
+                {(Object.entries(editingStructure) as [string, PhraseStructureSlot[]][]).map(([phraseType, slots]) => (
                   <div key={phraseType} style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", paddingBottom: 8, borderBottom: "1px dashed var(--rule)" }}>
                     {/* LHS Rule Identity */}
                     <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 60 }}>
