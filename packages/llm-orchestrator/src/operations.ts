@@ -71,6 +71,7 @@ export async function suggestPhonemeInventory(
       systemPrompt: SuggestInventoryPrompt.buildSystemPrompt(),
       userMessage,
       expectJson: true,
+      maxTokens: 1500,
     });
 
     let parsed: SuggestInventoryResponse;
@@ -135,6 +136,7 @@ export async function fillParadigmGaps(
       systemPrompt: FillParadigmsPrompt.buildSystemPrompt(),
       userMessage: FillParadigmsPrompt.buildUserMessage(req, prunedLang, previousErrors),
       expectJson: true,
+      maxTokens: 2000,
     });
 
     let parsed: FillParadigmGapsResponse;
@@ -193,9 +195,9 @@ export async function generateLexicon(
     const raw = await structuredRequest({
       operation: "generate_lexicon",
       systemPrompt: GenerateLexiconPrompt.buildSystemPrompt(),
-      userMessage: GenerateLexiconPrompt.buildUserMessage(req, previousErrors),
+      userMessage: GenerateLexiconPrompt.buildUserMessage(req, prunedLang, previousErrors),
       expectJson: true,
-      maxTokens: 6000,
+      maxTokens: 2000,
     });
 
     let parsed: GenerateLexiconResponse;
@@ -273,7 +275,7 @@ export async function generateCorpus(
       systemPrompt: `${CORPUS_SYSTEM_PROMPT}\n\nRespond with ONLY valid JSON.`,
       userMessage: buildCorpusUserMessage(req),
       expectJson: true,
-      maxTokens: 6000,
+      maxTokens: 2500,
     });
   }
 
@@ -327,7 +329,7 @@ export async function explainRule(
     systemPrompt: EXPLAIN_SYSTEM_PROMPT,
     userMessage: buildExplainUserMessage(req),
     expectJson: true,
-    maxTokens: 3000,
+    maxTokens: 1500,
   });
 
   const parsed = parseExplainResponse(raw);
@@ -366,7 +368,7 @@ export async function checkConsistency(
     systemPrompt: CONSISTENCY_SYSTEM_PROMPT,
     userMessage: buildConsistencyUserMessage(req, prunedLang),
     expectJson: true,
-    maxTokens: 3000,
+    maxTokens: 2000,
   });
 
   const parsed = parseConsistencyResponse(raw);

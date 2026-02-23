@@ -12,7 +12,7 @@
  */
 
 import type { GenerateLexiconRequest, GenerateLexiconResponse } from "../types.js";
-import type { LexicalEntry, PartOfSpeech } from "@slanger/shared-types";
+import type { LexicalEntry, PartOfSpeech, LanguageDefinition } from "@slanger/shared-types";
 
 export function buildSystemPrompt(): string {
   return `You are a linguistic expert specializing in constructed language lexicon design.
@@ -33,7 +33,7 @@ Each batch adds 5 essential words. Generate words efficiently.
 Prioritize core vocabulary (Swadesh-style) that a functional language needs. Match the slot requirements exactly.`;
 }
 
-export function buildUserMessage(req: GenerateLexiconRequest, retryErrors?: string[]): string {
+export function buildUserMessage(req: GenerateLexiconRequest, lang: LanguageDefinition, retryErrors?: string[]): string {
   const retryBlock = retryErrors?.length
     ? `\n[PREVIOUS ATTEMPT ERRORS — FIX THESE]\n${retryErrors.map((e, i) => `${i + 1}. ${e}`).join("\n")}\n`
     : "";
@@ -55,8 +55,8 @@ export function buildUserMessage(req: GenerateLexiconRequest, retryErrors?: stri
     ? `\nAVOID THESE EXISTING FORMS (don't create homophones):\n${req.existingOrthForms.slice(0, 30).join(", ")}`
     : "";
 
-  const worldNote = req.world
-    ? `\nWORLD/CULTURE CONTEXT: "${req.world}" — let this flavor naming conventions subtly`
+  const worldNote = lang.meta.world
+    ? `\nWORLD/CULTURE CONTEXT: "${lang.meta.world}" — let this flavor naming conventions subtly`
     : "";
 
   return `${retryBlock}
@@ -71,10 +71,10 @@ PHONEME INVENTORY (use ONLY these symbols in phonologicalForm — no others):
 ALLOWED IPA SYMBOLS ONLY: [ ${allowedOnly} ]
 Do NOT use ɛ, ɔ, ɑ, ɪ, ʊ, ə, æ, ʒ, ʃ, θ, ð, ŋ, etc. unless they appear in the list above. Use the exact vowels/consonants from this language (e.g. if vowels are a e i o u, write /kana/ not /kɑnɑ/).
 
-MORPHOLOGY: typology ${req.morphology.typology}. Follow the language's inflectional categories and paradigm structure (e.g. noun cases, verb agreement) when generating words; root forms should be compatible with the morphology.
+MORPHOLOGY: typology ${lang.morphology.typology}. Follow the language's inflectional categories and paradigm structure (e.g. noun cases, verb agreement) when generating words; root forms should be compatible with the morphology.
 NATURALISM SCORE: ${req.naturalismScore.toFixed(2)} (0=experimental, 1=naturalistic)
 TAGS: ${req.tags.join(", ") || "none"}
-${req.morphology.templatic?.enabled
+${lang.morphology.templatic?.enabled
       ? `\nTEMPLATIC MORPHOLOGY ENABLED:
 - For this language, roots are NOT whole words.
 - 'phonologicalForm' MUST be a sequence of consonants representing the root (e.g. "k-t-b").

@@ -13,6 +13,11 @@ export function pruneLanguageForOp(
     // Always work on a deep clone to avoid mutating the source language
     const pruned: LanguageDefinition = JSON.parse(JSON.stringify(lang));
 
+    // Truncate world context - it can be long
+    if (pruned.meta.world && pruned.meta.world.length > 500) {
+        pruned.meta.world = pruned.meta.world.slice(0, 500) + "... (truncated)";
+    }
+
     switch (op) {
         case "suggest_phoneme_inventory":
             // Needs meta, maybe current phonology. Lexicon/Corpus/Syntax are irrelevant.
@@ -43,42 +48,35 @@ export function pruneLanguageForOp(
             break;
 
         case "generate_lexicon":
-            // Needs phonology + morphology + meta. Lexicon is pruned because GenerateLexiconRequest
-            // has its own list of forms to avoid (existingOrthForms). Corpus/Syntax irrelevant.
+            // Needs phonology + morphology + meta.
+            // Paradigms are pruned because lexicon generation only needs typology/categories.
             pruned.lexicon = [];
             pruned.corpus = [];
+            pruned.morphology.paradigms = {};
             break;
 
         case "generate_corpus":
-            // Needs full language usually, but we can sample the lexicon if it's huge.
-            if (pruned.lexicon.length > 50) {
-                // Keep a sample of 50 words to give the AI a sense of vocabulary
-                pruned.lexicon = pruned.lexicon.slice(0, 50);
-            }
+            // Needs full language usually, but we sample aggressively
+            pruned.lexicon = pruned.lexicon.slice(0, 20);
+            pruned.corpus = pruned.corpus.slice(0, 3);
             break;
 
         case "explain_rule":
             // Needs partial context. We can prune the corpus and trim the lexicon.
             pruned.corpus = [];
-            if (pruned.lexicon.length > 20) {
-                pruned.lexicon = pruned.lexicon.slice(0, 20);
-            }
+            pruned.lexicon = pruned.lexicon.slice(0, 15);
             break;
 
         case "check_consistency":
             // Needs consistency between modules. We sample the lexicon and corpus to keep size down.
-            if (pruned.lexicon.length > 30) {
-                pruned.lexicon = pruned.lexicon.slice(0, 30);
-            }
-            if (pruned.corpus.length > 5) {
-                pruned.corpus = pruned.corpus.slice(0, 5);
-            }
+            pruned.lexicon = pruned.lexicon.slice(0, 20);
+            pruned.corpus = pruned.corpus.slice(0, 3);
             break;
     }
 
     // Clear large metadata fields not needed by LLM
     if (pruned.meta.versionHistory) {
-        delete pruned.meta.versionHistory;
+        delete (pruned.meta as any).versionHistory;
     }
 
     return pruned;
