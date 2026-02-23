@@ -72,6 +72,7 @@ COPY --from=builder --chown=slanger:slanger /app/packages/llm-orchestrator/dist 
 COPY --from=builder --chown=slanger:slanger /app/packages/llm-orchestrator/package.json ./packages/llm-orchestrator/
 
 # Install production dependencies only
+COPY --from=builder --chown=slanger:slanger /app/package-lock.json ./
 RUN npm ci --omit=dev --workspaces
 
 USER slanger
