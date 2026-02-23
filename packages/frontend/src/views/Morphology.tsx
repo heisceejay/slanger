@@ -66,6 +66,7 @@ export function MorphologyView({
     Object.keys(morph.paradigms)[0] ?? null
   );
   const [editingCell, setEditingCell] = useState<{ paradigm: string; key: string } | null>(null);
+  const [newSlotText, setNewSlotText] = useState("");
 
   const handleMorphChange = useCallback(
     (patch: Partial<MorphologyConfig>) => {
@@ -129,12 +130,24 @@ export function MorphologyView({
     });
   }
 
-  // ─── Morpheme order: move slot ─────────────────────────────────────────────
+  // ─── Morpheme order: move/add/remove slot ────────────────────────────────
   function moveSlot(index: number, dir: 1 | -1) {
     const order = [...morph.morphemeOrder];
     const ni = index + dir;
     if (ni < 0 || ni >= order.length) return;
     [order[index], order[ni]] = [order[ni]!, order[index]!];
+    handleMorphChange({ morphemeOrder: order });
+  }
+
+  function addSlot(slot: string) {
+    if (!slot.trim() || morph.morphemeOrder.includes(slot.trim())) return;
+    handleMorphChange({ morphemeOrder: [...morph.morphemeOrder, slot.trim()] });
+    setNewSlotText("");
+  }
+
+  function removeSlot(index: number) {
+    const order = [...morph.morphemeOrder];
+    order.splice(index, 1);
     handleMorphChange({ morphemeOrder: order });
   }
 
@@ -150,8 +163,8 @@ export function MorphologyView({
     const ruleId = (rule as { id?: string }).id;
     const derivedForm = ruleId
       ? (entry.derivedForms as { ruleId?: string; orthographicForm?: string; phonologicalForm?: string }[]).find(
-          (d) => d.ruleId === ruleId
-        )
+        (d) => d.ruleId === ruleId
+      )
       : undefined;
     return {
       baseOrth,
@@ -252,64 +265,110 @@ export function MorphologyView({
         <div className="panel mb16">
           <div className="panel-head"><span className="panel-title">Morpheme order</span></div>
           <div className="panel-body">
-            <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+            <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
               {morph.morphemeOrder.map((slot, i) => (
                 <div
                   key={`${slot}-${i}`}
                   style={{
                     display: "flex",
-                    alignItems: "center",
-                    gap: 4,
+                    alignItems: "stretch",
+                    border: "1px solid var(--rule-heavy)",
+                    background: "var(--paper)",
                   }}
                 >
                   <div
                     style={{
                       padding: "8px 14px",
-                      border: "1px solid var(--rule-heavy)",
                       fontFamily: "var(--mono)",
                       fontSize: 12,
-                      background: "var(--paper)",
+                      display: "flex",
+                      alignItems: "center",
                     }}
                   >
                     {slot}
                   </div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+                  <div style={{ display: "flex", flexDirection: "column", borderLeft: "1px solid var(--rule)" }}>
                     <button
                       type="button"
                       onClick={() => moveSlot(i, -1)}
                       disabled={i === 0}
                       style={{
-                        padding: "2px 6px",
-                        border: "1px solid var(--rule)",
+                        padding: "0px 8px",
+                        flex: 1,
+                        border: "none",
+                        borderBottom: "1px solid var(--rule)",
                         background: "transparent",
                         cursor: i === 0 ? "not-allowed" : "pointer",
-                        opacity: i === 0 ? 0.4 : 1,
-                        fontSize: 10,
+                        opacity: i === 0 ? 0.3 : 0.7,
+                        fontSize: 9,
                       }}
                     >
-                      ↑
+                      ▲
                     </button>
                     <button
                       type="button"
                       onClick={() => moveSlot(i, 1)}
                       disabled={i === morph.morphemeOrder.length - 1}
                       style={{
-                        padding: "2px 6px",
-                        border: "1px solid var(--rule)",
+                        padding: "0px 8px",
+                        flex: 1,
+                        border: "none",
                         background: "transparent",
                         cursor: i === morph.morphemeOrder.length - 1 ? "not-allowed" : "pointer",
-                        opacity: i === morph.morphemeOrder.length - 1 ? 0.4 : 1,
-                        fontSize: 10,
+                        opacity: i === morph.morphemeOrder.length - 1 ? 0.3 : 0.7,
+                        fontSize: 9,
                       }}
                     >
-                      ↓
+                      ▼
                     </button>
                   </div>
-                  {i < morph.morphemeOrder.length - 1 && (
-                    <span style={{ opacity: 0.3, fontSize: 12 }}>→</span>
-                  )}
+                  <button
+                    type="button"
+                    onClick={() => removeSlot(i)}
+                    style={{
+                      padding: "0px 10px",
+                      border: "none",
+                      borderLeft: "1px solid var(--rule)",
+                      background: "transparent",
+                      cursor: "pointer",
+                      opacity: 0.5,
+                      fontSize: 14,
+                      color: "var(--error)",
+                    }}
+                  >
+                    ×
+                  </button>
                 </div>
               ))}
+
+              <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                <input
+                  type="text"
+                  placeholder="New slot..."
+                  value={newSlotText}
+                  onChange={(e) => setNewSlotText(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") addSlot(newSlotText);
+                  }}
+                  style={{
+                    padding: "6px 10px",
+                    fontFamily: "var(--mono)",
+                    fontSize: 12,
+                    border: "1px dashed var(--rule-heavy)",
+                    background: "transparent",
+                    width: 100,
+                  }}
+                />
+                {newSlotText && (
+                  <button
+                    type="button"
+                    onClick={() => addSlot(newSlotText)}
+                    className="btn btn-sm"
+                  >
+                    Add
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>

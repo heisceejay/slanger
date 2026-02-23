@@ -8,12 +8,11 @@ import { MorphologyView } from "./views/Morphology";
 import { SyntaxView } from "./views/Syntax";
 import { LexiconView } from "./views/Lexicon";
 import { CorpusView } from "./views/Corpus";
-import { GenerateView } from "./views/Generate";
 import { SettingsView } from "./views/Settings";
 
 export type View =
   | "dashboard" | "phonology" | "morphology" | "syntax"
-  | "lexicon" | "corpus" | "generate" | "settings";
+  | "lexicon" | "corpus" | "settings";
 
 // ─── App root — no auth, data from sessionStorage ─────────────────────────────
 
@@ -116,9 +115,14 @@ export default function App() {
                         }}
                       >
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: 11 }}>{entry.label}</div>
-                          <div style={{ fontSize: 9, opacity: 0.5 }}>
-                            {new Date(entry.timestamp).toLocaleString()}
+                          <div style={{ fontSize: 11 }}>
+                            <span style={{ opacity: 0.5, fontFamily: "var(--mono)", marginRight: 6 }}>
+                              v{entry.snapshot.meta.version}
+                            </span>
+                            {entry.label}
+                          </div>
+                          <div style={{ fontSize: 9, opacity: 0.4 }}>
+                            {new Date(entry.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                           </div>
                         </div>
                         <button
@@ -241,21 +245,7 @@ export default function App() {
           </div>
         )}
 
-        {activeId && (
-          <>
-            <div className="nav-divider" />
-            <div className="nav-section">
-              <div className="nav-label">AI</div>
-              <button
-                className={`nav-item ${view === "generate" ? "active" : ""}`}
-                onClick={() => setView("generate")}
-              >
-                <span className="nav-icon">⊛</span>
-                Generate
-              </button>
-            </div>
-          </>
-        )}
+
 
         <div style={{ marginTop: "auto" }}>
           <div className="nav-divider" />
@@ -295,7 +285,7 @@ export default function App() {
             {view === "syntax" && <SyntaxView lang={activeLang} onUpdated={refreshLang} />}
             {view === "lexicon" && <LexiconView lang={activeLang} onUpdated={refreshLang} />}
             {view === "corpus" && <CorpusView lang={activeLang} onUpdated={refreshLang} />}
-            {view === "generate" && <GenerateView lang={activeLang} onUpdated={refreshLang} />}
+
           </>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", gap: 12 }}>

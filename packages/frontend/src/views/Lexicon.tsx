@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import type { Language, LexicalEntry } from "../lib/api";
 import { generateLexicon, explainRule, updateLanguage } from "../lib/api";
 
@@ -20,11 +20,8 @@ export function LexiconView({
     crossLinguisticParallels: string[];
   } | null>(null);
   const [explaining, setExplaining] = useState(false);
-  const [editingIpa, setEditingIpa] = useState<string | null>(null);
 
   const entries = lang.lexicon;
-  useEffect(() => { setEditingIpa(null); }, [selectedEntry?.id]);
-
   // Coverage stats
   const posCounts = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -68,11 +65,7 @@ export function LexiconView({
     if (updated) onUpdated(updated);
   }
 
-  function handleIpaChange(entryId: string, ipa: string) {
-    const orthography = lang.phonology?.orthography ?? {};
-    const orth = ipa.split("").map((ch) => orthography[ch] ?? ch).join("") || ipa;
-    handleUpdateEntry(entryId, { phonologicalForm: ipa.startsWith("/") ? ipa : `/${ipa}/`, orthographicForm: orth });
-  }
+
 
   async function handleExplain(entry: LexicalEntry) {
     setSelectedEntry(entry);
@@ -260,30 +253,19 @@ export function LexiconView({
                     <div style={{ fontFamily: "var(--mono)", fontSize: 28, fontStyle: "italic", marginBottom: 8 }}>
                       {entry.orthographicForm}
                     </div>
-                    <div className="muted small mb4" style={{ textTransform: "uppercase", letterSpacing: "0.1em" }}>IPA (editable)</div>
-                    <input
-                      type="text"
-                      value={editingIpa !== null ? editingIpa : entry.phonologicalForm.replace(/^\/|\/$/g, "")}
-                      onChange={(e) => setEditingIpa(e.target.value)}
-                      onBlur={(e) => {
-                        const v = e.target.value.trim();
-                        if (v) handleIpaChange(entry.id, v);
-                        setEditingIpa(null);
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-                      }}
-                      style={{
-                        width: "100%",
-                        fontFamily: "var(--mono)",
-                        fontSize: 14,
-                        padding: "8px 10px",
-                        border: "1px solid var(--rule-heavy)",
-                        background: "var(--paper-mid)",
-                        marginBottom: 12,
-                      }}
-                      placeholder="/ipa/"
-                    />
+                    <div className="muted small mb4" style={{ textTransform: "uppercase", letterSpacing: "0.1em" }}>IPA Phonology</div>
+                    <div style={{
+                      width: "100%",
+                      fontFamily: "var(--mono)",
+                      fontSize: 14,
+                      padding: "8px 10px",
+                      border: "1px solid var(--rule-heavy)",
+                      background: "var(--paper)",
+                      marginBottom: 12,
+                      opacity: 0.8
+                    }}>
+                      {entry.phonologicalForm}
+                    </div>
 
                     <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
                       <span className="tag tag-fill">{entry.pos}</span>
