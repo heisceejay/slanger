@@ -24,9 +24,9 @@ export async function buildApp() {
 
   // ─── Plugins ────────────────────────────────────────────────────────────────
 
-  await fastify.register(helmet, {
-    contentSecurityPolicy: config.env === "production",
-  });
+  // await fastify.register(helmet, {
+  //   contentSecurityPolicy: config.env === "production",
+  // });
 
   const corsOrigins = process.env.CORS_ORIGINS
     ? process.env.CORS_ORIGINS.split(",").map((o) => o.trim())
