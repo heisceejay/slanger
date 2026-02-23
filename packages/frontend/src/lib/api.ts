@@ -395,32 +395,55 @@ function persistWithHistory(previousLang: Language, newLang: Language, stepLabel
   return persistServerLang(merged);
 }
 
+/** Strip client-only fields (versionHistory) before sending to the API to avoid massive payloads */
+function stripForApi(lang: Language): Language {
+  return { ...lang, meta: { ...lang.meta, versionHistory: undefined } };
+}
+
 export interface SuggestResult {
   language: Language;
   rationale: string;
 }
 
 export async function suggestInventory(lang: Language): Promise<{ language: Language; rationale: string }> {
-  // Clear the existing phonology so the LLM doesn't just parrot it back when regenerating
-  const clone = { ...lang, phonology: { ...lang.phonology, inventory: { consonants: [], vowels: [], tones: [] } } };
+  // Strip versionHistory before sending — it can be 15 full snapshots (HUGE payload)
+  const clone: Language = {
+    ...lang,
+    meta: { ...lang.meta, versionHistory: undefined },
+    // Clear the existing inventory so the LLM doesn't just parrot it back when regenerating
+    phonology: { ...lang.phonology, inventory: { consonants: [], vowels: [], tones: [] } },
+    // Strip lexicon and corpus — not needed for phonology suggestion
+    lexicon: [],
+    corpus: [],
+  };
   const res = await request<{ data: { language: Language; rationale: string; fromCache: boolean } }>(
     "POST",
     "/suggest-inventory",
     clone
   );
 
-  // Preserve existing settings that the AI operation might not have returned or might have reset
   const serverLang = res.data.language;
 
-  const currentOrtho = lang.phonology.orthography || {};
-  const hasOrthography = Object.keys(currentOrtho).length > 0;
+  // Preserve user's existing writing system aesthetics/style if set
   const currentWS = lang.phonology.writingSystem;
   const hasWS = currentWS && Object.keys(currentWS.mappings || {}).length > 0;
 
+  // Build fresh glyph mappings from the new orthography
+  const newOrtho = serverLang.phonology.orthography || {};
+  const freshMappings: Record<string, string[]> = Object.fromEntries(
+    Object.entries(newOrtho).map(([ipa, grapheme]) => [ipa, [grapheme as string]])
+  );
+
   const mergedPhonology = {
     ...serverLang.phonology,
-    orthography: hasOrthography ? currentOrtho : serverLang.phonology.orthography,
-    writingSystem: hasWS ? currentWS : (serverLang.phonology.writingSystem || lang.phonology.writingSystem),
+    writingSystem: hasWS
+      ? {
+        ...currentWS,
+        mappings: freshMappings, // always refresh mappings to match new inventory
+      }
+      : (serverLang.phonology.writingSystem
+        ? { ...serverLang.phonology.writingSystem, mappings: freshMappings }
+        : lang.phonology.writingSystem),
     suprasegmentals: lang.phonology.suprasegmentals,
   };
   serverLang.phonology = mergedPhonology;
@@ -462,13 +485,13 @@ export interface FillResult {
 
 export async function fillParadigms(lang: Language): Promise<FillResult> {
   const res = await request<{ data: { language: Language; rationale: string } }>(
-    "POST", "/fill-paradigms", lang
+    "POST", "/fill-paradigms", stripForApi(lang)
   );
   return { language: persistWithHistory(lang, res.data.language, "Before: Fill paradigm gaps"), rationale: res.data.rationale ?? "" };
 }
 
 export async function generateLexicon(lang: Language, batchSize = 5): Promise<Language> {
-  const res = await request<LLMResp>("POST", "/generate-lexicon", { language: lang, batchSize });
+  const res = await request<LLMResp>("POST", "/generate-lexicon", { language: stripForApi(lang), batchSize });
   return persistWithHistory(lang, res.data.language, "Before: Generate lexicon batch");
 }
 
@@ -478,7 +501,7 @@ export async function generateCorpus(
   count = 5,
   registers: ("informal" | "formal" | "narrative")[] = ["informal", "formal", "narrative"]
 ): Promise<Language> {
-  const res = await request<LLMResp>("POST", "/generate-corpus", { language: lang, count, registers, prompt });
+  const res = await request<LLMResp>("POST", "/generate-corpus", { language: stripForApi(lang), count, registers, prompt });
   return persistWithHistory(lang, res.data.language, "Before: Generate corpus");
 }
 
@@ -495,7 +518,7 @@ export async function explainRule(
   ruleData: unknown
 ): Promise<ExplainResult> {
   const res = await request<{ data: ExplainResult }>("POST", "/explain-rule", {
-    language: lang, module, ruleRef, ruleData, depth: "technical",
+    language: stripForApi(lang), module, ruleRef, ruleData, depth: "technical",
   });
   return res.data;
 }
@@ -508,7 +531,7 @@ export interface ConsistencyResult {
 }
 
 export async function checkConsistency(lang: Language): Promise<ConsistencyResult> {
-  const res = await request<{ data: ConsistencyResult }>("POST", "/check-consistency", lang);
+  const res = await request<{ data: ConsistencyResult }>("POST", "/check-consistency", stripForApi(lang));
   return res.data;
 }
 
