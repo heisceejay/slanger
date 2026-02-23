@@ -16,6 +16,7 @@ import type { ValidationResult } from "@slanger/validation";
 import { structuredRequest, streamingRequest } from "./client.js";
 import { getCache } from "./cache.js";
 import { withValidationRetry, buildRetryPreamble, MAX_ATTEMPTS } from "./retry.js";
+import { pruneLanguageForOp } from "./prune.js";
 import type {
   LLMOperationResult, LLMOperationError, StreamEvent,
   SuggestInventoryRequest, SuggestInventoryResponse,
@@ -62,6 +63,7 @@ export async function suggestPhonemeInventory(
 
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     const previousErrors = retryReasons.length > 0 ? retryReasons[retryReasons.length - 1] : undefined;
+    const prunedLang = pruneLanguageForOp(baseLanguage, "suggest_phoneme_inventory");
     const userMessage = SuggestInventoryPrompt.buildUserMessage(req, previousErrors);
 
     const raw = await structuredRequest({
@@ -127,10 +129,11 @@ export async function fillParadigmGaps(
 
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     const previousErrors = retryReasons.length > 0 ? retryReasons[retryReasons.length - 1] : undefined;
+    const prunedLang = pruneLanguageForOp(baseLanguage, "fill_paradigm_gaps");
     const raw = await structuredRequest({
       operation: "fill_paradigm_gaps",
       systemPrompt: FillParadigmsPrompt.buildSystemPrompt(),
-      userMessage: FillParadigmsPrompt.buildUserMessage(req, previousErrors),
+      userMessage: FillParadigmsPrompt.buildUserMessage(req, prunedLang, previousErrors),
       expectJson: true,
     });
 
@@ -171,6 +174,7 @@ export async function generateLexicon(
 ): Promise<LLMOperationResult<GenerateLexiconResponse>> {
   const start = Date.now();
   const cache = getCache();
+  const prunedLang = pruneLanguageForOp(baseLanguage, "generate_lexicon");
 
   const cached = await cache.get<GenerateLexiconResponse>("generate_lexicon", req);
   if (cached) {
@@ -255,6 +259,7 @@ export async function generateCorpus(
   }
 
   let raw: string;
+  const prunedLang = pruneLanguageForOp(baseLanguage, "generate_corpus");
   if (onEvent) {
     raw = await streamingRequest({
       operation: "generate_corpus",
@@ -316,6 +321,7 @@ export async function explainRule(
     };
   }
 
+  const prunedLang = pruneLanguageForOp(req.language, "explain_rule");
   const raw = await structuredRequest({
     operation: "explain_rule",
     systemPrompt: EXPLAIN_SYSTEM_PROMPT,
@@ -354,10 +360,11 @@ export async function checkConsistency(
     };
   }
 
+  const prunedLang = pruneLanguageForOp(req.language, "check_consistency");
   const raw = await structuredRequest({
     operation: "check_consistency",
     systemPrompt: CONSISTENCY_SYSTEM_PROMPT,
-    userMessage: buildConsistencyUserMessage(req),
+    userMessage: buildConsistencyUserMessage(req, prunedLang),
     expectJson: true,
     maxTokens: 3000,
   });

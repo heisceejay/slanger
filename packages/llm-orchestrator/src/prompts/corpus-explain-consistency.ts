@@ -11,7 +11,7 @@ import type {
   ExplainRuleRequest, ExplainRuleResponse,
   CheckConsistencyRequest, CheckConsistencyResponse
 } from "../types.js";
-import type { CorpusSample, InterlinearLine, LexicalEntry } from "@slanger/shared-types";
+import type { CorpusSample, InterlinearLine, LexicalEntry, LanguageDefinition } from "@slanger/shared-types";
 
 // ─── Op 4: generate_corpus ────────────────────────────────────────────────────
 
@@ -283,46 +283,46 @@ Your role is to identify inconsistencies that rule-based validators miss:
 
 Be constructive — note strengths, not just problems. Score 0-100 (100 = perfectly consistent).`;
 
-export function buildConsistencyUserMessage(req: CheckConsistencyRequest, retryErrors?: string[]): string {
+export function buildConsistencyUserMessage(req: CheckConsistencyRequest, lang: LanguageDefinition, retryErrors?: string[]): string {
   const retryBlock = retryErrors?.length
     ? `\n[RETRY]\n${retryErrors.map((e, i) => `${i + 1}. ${e}`).join("\n")}\n`
     : "";
 
   const focus = req.focusAreas?.join(", ") ?? "all areas";
-  const lang = req.language;
+  const usedLang = lang;
 
   return `${retryBlock}
-Perform a linguistic consistency review of "${lang.meta.name}".
+Perform a linguistic consistency review of "${usedLang.meta.name}".
 
 FOCUS AREAS: ${focus}
 
 PHONOLOGY:
-- Consonants (${lang.phonology.inventory.consonants.length}): ${lang.phonology.inventory.consonants.join(" ")}
-- Vowels (${lang.phonology.inventory.vowels.length}): ${lang.phonology.inventory.vowels.join(" ")}
-- Suprasegmentals: tone=${lang.phonology.suprasegmentals.hasLexicalTone}, stress=${lang.phonology.suprasegmentals.hasPhonemicStress}
-- Templates: ${lang.phonology.phonotactics.syllableTemplates.join(", ")}
-${lang.phonology.writingSystem ? `- Writing System: ${lang.phonology.writingSystem.type}` : ""}
+- Consonants (${usedLang.phonology.inventory.consonants.length}): ${usedLang.phonology.inventory.consonants.join(" ")}
+- Vowels (${usedLang.phonology.inventory.vowels.length}): ${usedLang.phonology.inventory.vowels.join(" ")}
+- Suprasegmentals: tone=${usedLang.phonology.suprasegmentals.hasLexicalTone}, stress=${usedLang.phonology.suprasegmentals.hasPhonemicStress}
+- Templates: ${usedLang.phonology.phonotactics.syllableTemplates.join(", ")}
+${usedLang.phonology.writingSystem ? `- Writing System: ${usedLang.phonology.writingSystem.type}` : ""}
 
 MORPHOLOGY:
-- Typology: ${lang.morphology.typology}
-- Templatic: ${lang.morphology.templatic?.enabled ? `YES (${lang.morphology.templatic.rootTemplates.join(", ")})` : "NO"}
-- Categories: ${JSON.stringify(lang.morphology.categories)}
-- Paradigm keys: ${Object.keys(lang.morphology.paradigms).join(", ")}
-- Morpheme order: ${lang.morphology.morphemeOrder.join(" → ")}
+- Typology: ${usedLang.morphology.typology}
+- Templatic: ${usedLang.morphology.templatic?.enabled ? `YES (${usedLang.morphology.templatic.rootTemplates.join(", ")})` : "NO"}
+- Categories: ${JSON.stringify(usedLang.morphology.categories)}
+- Paradigm keys: ${Object.keys(usedLang.morphology.paradigms).join(", ")}
+- Morpheme order: ${usedLang.morphology.morphemeOrder.join(" → ")}
 
 SYNTAX:
-- Word order: ${lang.syntax.wordOrder}
-- Alignment: ${lang.syntax.alignment}
-- Headedness: ${lang.syntax.headedness}
-- Adposition type: ${lang.syntax.adpositionType}
-- Clause types: ${lang.syntax.clauseTypes.join(", ")}
+- Word order: ${usedLang.syntax.wordOrder}
+- Alignment: ${usedLang.syntax.alignment}
+- Headedness: ${usedLang.syntax.headedness}
+- Adposition type: ${usedLang.syntax.adpositionType}
+- Clause types: ${usedLang.syntax.clauseTypes.join(", ")}
 
 PRAGMATICS:
-- Formal register: ${lang.pragmatics.hasFormalRegister}
-- Honorifics: ${lang.pragmatics.hasHonorifics}
-- Strategies: ${lang.pragmatics.politenessStrategies.join(", ") || "none"}
+- Formal register: ${usedLang.pragmatics.hasFormalRegister}
+- Honorifics: ${usedLang.pragmatics.hasHonorifics}
+- Strategies: ${usedLang.pragmatics.politenessStrategies.join(", ") || "none"}
 
-LEXICON: ${lang.lexicon.length} entries (${lang.lexicon.filter(e => e.subcategory === "personal-pronoun").length} pronouns, ${lang.lexicon.filter(e => e.subcategory === "cardinal-number").length} numerals)
+LEXICON: ${usedLang.lexicon.length} entries (${usedLang.lexicon.filter((e: LexicalEntry) => e.subcategory === "personal-pronoun").length} pronouns, ${usedLang.lexicon.filter((e: LexicalEntry) => e.subcategory === "cardinal-number").length} numerals)
 
 Respond with ONLY this JSON:
 {
@@ -335,8 +335,8 @@ Respond with ONLY this JSON:
       "suggestion": "<how to fix it>"
     }
   ],
-  "suggestions": ["<actionable improvement>", ...],
-  "strengths": ["<positive feature>", ...]
+  "overallStrengths": ["<positive feature>", ...],
+  "suggestions": ["<actionable improvement>", ...]
 }`.trim();
 }
 
