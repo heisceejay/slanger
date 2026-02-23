@@ -17,20 +17,16 @@ import type { LexicalEntry, PartOfSpeech, LanguageDefinition } from "@slanger/sh
 export function buildSystemPrompt(): string {
   return `You are a linguistic expert specializing in constructed language lexicon design.
 
-You generate vocabulary for constructed languages. Each word you create must:
-1. Be built EXCLUSIVELY from the provided phoneme inventory. If /s/ is not in the inventory, you are STRICTLY FORBIDDEN from using /s/ in any word.
-2. Follow the syllable templates exactly — no exceptions.
-3. Respect all phonological and morphological rules: if the language has root templates (like k-t-b) or specific morpheme orders, your roots must be compatible with them.
-4. Have a plausible IPA phonological form AND an orthographic form (explicitly derived from the orthography map).
-5. Include semantically motivated polysemy where natural (most words should have 1-2 senses).
+You generate vocabulary for constructed languages. Each word must:
+1. Use ONLY phonemes from the provided inventory — NO exceptions.
+2. Follow the syllable templates exactly.
+3. Respect morphological rules (root templates, morpheme orders).
+4. Have a valid IPA form AND orthographic form (from the orthography map).
+5. Include polysemy where natural (1-2 senses per word).
 6. Avoid phonological collision with existing words.
-7. Provide semantic roles for all verbs (agent, patient, experiencer, theme, etc.).
-8. Mark pronouns, numbers, and function words with the correct subcategory field.
-9. NEVER invent new phonemes. Every single character in your words MUST be a direct copy-paste from the allowed inventory list.
+7. NEVER invent new phonemes.
 
-Each batch adds 5 essential words. Generate words efficiently.
-
-Prioritize core vocabulary (Swadesh-style) that a functional language needs. Match the slot requirements exactly.`;
+Generate core vocabulary efficiently. Prioritize Swadesh-style words.`;
 }
 
 export function buildUserMessage(req: GenerateLexiconRequest, lang: LanguageDefinition, retryErrors?: string[]): string {
@@ -44,7 +40,7 @@ export function buildUserMessage(req: GenerateLexiconRequest, lang: LanguageDefi
   const vowStr = vowels.join(" ");
   const allowedOnly = [...consonants, ...vowels].join(", ");
   const templates = req.phonology.phonotactics.syllableTemplates.join(", ");
-  const orthSample = Object.entries(req.phonology.orthography).slice(0, 12).map(([p, g]) => `${p}→${g}`).join(", ");
+  const orthSample = Object.entries(req.phonology.orthography).slice(0, 8).map(([p, g]) => `${p}→${g}`).join(", ");
 
   const slotsBlock = req.targetSlots
     .slice(0, req.batchSize)
@@ -52,7 +48,7 @@ export function buildUserMessage(req: GenerateLexiconRequest, lang: LanguageDefi
     .join("\n");
 
   const existingBlock = req.existingOrthForms.length
-    ? `\nAVOID THESE EXISTING FORMS (don't create homophones):\n${req.existingOrthForms.slice(0, 30).join(", ")}`
+    ? `\nAVOID THESE EXISTING FORMS (don't create homophones):\n${req.existingOrthForms.slice(0, 10).join(", ")}`
     : "";
 
   const worldNote = lang.meta.world
@@ -113,13 +109,8 @@ Respond with ONLY this JSON:
   "phonologicalNotes": "<brief note on phonological patterns used>"
 }
 
-CRITICAL:
-- IDs: lex_0001, lex_0002, ... (4+ digits)
-- phonologicalForm: use ONLY these symbols — ${allowedOnly}. No ɛ, ɔ, ɑ, ɪ, ʊ, ə, æ. Format: "/syllable.syllable/" or "/word/"
-- Every word must match syllable templates: ${templates}
-- orthographicForm: spell using the orthography map (each IPA → one grapheme)
-- glosses: every entry MUST have at least one gloss, e.g. ["water"]. Never leave glosses empty.
-- semanticRoles: required for verbs (e.g. ["agent"])`.trim();
+RESPOND WITH ONLY valid JSON. No markdown, no preamble.
+IDs: lex_0001, lex_0002, etc. Phonemes only from: ${allowedOnly}. Templates: ${templates}.`.trim();
 }
 
 export function parseResponse(raw: string, startId: number): GenerateLexiconResponse {
