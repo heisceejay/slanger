@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import type { Language, LexicalEntry } from "../lib/api";
-import { generateLexicon, explainRule } from "../lib/api";
+import { generateLexicon, explainRule, updateLanguage } from "../lib/api";
 
 export function LexiconView({
   lang,
@@ -70,7 +70,7 @@ export function LexiconView({
 
   function handleIpaChange(entryId: string, ipa: string) {
     const orthography = lang.phonology?.orthography ?? {};
-    const orth = ipaToOrthography(ipa, orthography) || ipa;
+    const orth = ipa.split("").map((ch) => orthography[ch] ?? ch).join("") || ipa;
     handleUpdateEntry(entryId, { phonologicalForm: ipa.startsWith("/") ? ipa : `/${ipa}/`, orthographicForm: orth });
   }
 
@@ -243,161 +243,161 @@ export function LexiconView({
           {selectedEntry && (() => {
             const entry = entries.find((e) => e.id === selectedEntry.id) ?? selectedEntry;
             return (
-            <div style={{ width: 320, flexShrink: 0 }}>
-              <div className="panel">
-                <div className="panel-head">
-                  <span className="panel-title">Entry</span>
-                  <button
-                    className="btn btn-sm"
-                    onClick={() => handleExplain(entry)}
-                    disabled={explaining}
-                  >
-                    {explaining ? <span className="spinner" /> : "⊛"} Explain
-                  </button>
-                </div>
-                <div className="panel-body">
-                  <div className="muted small mb4" style={{ textTransform: "uppercase", letterSpacing: "0.1em" }}>Orthographic (from map)</div>
-                  <div style={{ fontFamily: "var(--mono)", fontSize: 28, fontStyle: "italic", marginBottom: 8 }}>
-                    {entry.orthographicForm}
-                  </div>
-                  <div className="muted small mb4" style={{ textTransform: "uppercase", letterSpacing: "0.1em" }}>IPA (editable)</div>
-                  <input
-                    type="text"
-                    value={editingIpa !== null ? editingIpa : entry.phonologicalForm.replace(/^\/|\/$/g, "")}
-                    onChange={(e) => setEditingIpa(e.target.value)}
-                    onBlur={(e) => {
-                      const v = e.target.value.trim();
-                      if (v) handleIpaChange(entry.id, v);
-                      setEditingIpa(null);
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-                    }}
-                    style={{
-                      width: "100%",
-                      fontFamily: "var(--mono)",
-                      fontSize: 14,
-                      padding: "8px 10px",
-                      border: "1px solid var(--rule-heavy)",
-                      background: "var(--paper-mid)",
-                      marginBottom: 12,
-                    }}
-                    placeholder="/ipa/"
-                  />
-
-                  <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
-                    <span className="tag tag-fill">{entry.pos}</span>
-                    {entry.subcategory && (
-                      <span className="tag">{entry.subcategory}</span>
-                    )}
-                    {entry.etymologyType && (
-                      <span className="tag" style={{ opacity: 0.9 }}>{entry.etymologyType}</span>
-                    )}
-                  </div>
-
-                  {/* Etymology */}
-                  <div className="mb16">
-                    <div className="muted small mb8" style={{ textTransform: "uppercase", letterSpacing: "0.1em" }}>Etymology</div>
-                    <select
-                      value={entry.etymologyType ?? ""}
-                      onChange={(e) => {
-                        const v = (e.target.value || undefined) as LexicalEntry["etymologyType"];
-                        handleUpdateEntry(entry.id, {
-                          etymologyType: v,
-                          ...(v !== "derived" ? { derivedFromEntryId: undefined } : {}),
-                          ...(v !== "borrowed" ? { borrowedFrom: undefined } : {}),
-                        });
-                      }}
-                      style={{ width: "100%", padding: "6px 8px", marginBottom: 8, fontSize: 11 }}
+              <div style={{ width: 320, flexShrink: 0 }}>
+                <div className="panel">
+                  <div className="panel-head">
+                    <span className="panel-title">Entry</span>
+                    <button
+                      className="btn btn-sm"
+                      onClick={() => handleExplain(entry)}
+                      disabled={explaining}
                     >
-                      <option value="">—</option>
-                      <option value="derived">Derived from another word</option>
-                      <option value="borrowed">Borrowed</option>
-                      <option value="reconstructed">Reconstructed</option>
-                    </select>
-                    {entry.etymologyType === "derived" && (
-                      <select
-                        value={entry.derivedFromEntryId ?? ""}
-                        onChange={(e) => handleUpdateEntry(entry.id, { derivedFromEntryId: e.target.value || undefined })}
-                        style={{ width: "100%", padding: "6px 8px", marginBottom: 8, fontSize: 11 }}
-                      >
-                        <option value="">— Select source word</option>
-                        {entries.filter((e) => e.id !== entry.id).map((e) => (
-                          <option key={e.id} value={e.id}>{e.orthographicForm} ({e.glosses[0]})</option>
-                        ))}
-                      </select>
-                    )}
-                    {entry.etymologyType === "borrowed" && (
-                      <input
-                        type="text"
-                        value={entry.borrowedFrom ?? ""}
-                        onChange={(e) => handleUpdateEntry(entry.id, { borrowedFrom: e.target.value || undefined })}
-                        placeholder="Source language or note"
-                        style={{ width: "100%", padding: "6px 8px", marginBottom: 8, fontSize: 11 }}
-                      />
-                    )}
+                      {explaining ? <span className="spinner" /> : "⊛"} Explain
+                    </button>
+                  </div>
+                  <div className="panel-body">
+                    <div className="muted small mb4" style={{ textTransform: "uppercase", letterSpacing: "0.1em" }}>Orthographic (from map)</div>
+                    <div style={{ fontFamily: "var(--mono)", fontSize: 28, fontStyle: "italic", marginBottom: 8 }}>
+                      {entry.orthographicForm}
+                    </div>
+                    <div className="muted small mb4" style={{ textTransform: "uppercase", letterSpacing: "0.1em" }}>IPA (editable)</div>
                     <input
                       type="text"
-                      value={entry.etymology ?? ""}
-                      onChange={(e) => handleUpdateEntry(entry.id, { etymology: e.target.value || undefined })}
-                      placeholder="Free-form note"
-                      style={{ width: "100%", padding: "6px 8px", fontSize: 11 }}
+                      value={editingIpa !== null ? editingIpa : entry.phonologicalForm.replace(/^\/|\/$/g, "")}
+                      onChange={(e) => setEditingIpa(e.target.value)}
+                      onBlur={(e) => {
+                        const v = e.target.value.trim();
+                        if (v) handleIpaChange(entry.id, v);
+                        setEditingIpa(null);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+                      }}
+                      style={{
+                        width: "100%",
+                        fontFamily: "var(--mono)",
+                        fontSize: 14,
+                        padding: "8px 10px",
+                        border: "1px solid var(--rule-heavy)",
+                        background: "var(--paper-mid)",
+                        marginBottom: 12,
+                      }}
+                      placeholder="/ipa/"
                     />
-                  </div>
 
-                  <div className="mb16">
-                    <div className="muted small mb8" style={{ textTransform: "uppercase", letterSpacing: "0.1em" }}>Glosses</div>
-                    {entry.glosses.map((g, i) => (
-                      <div key={i} style={{ fontSize: 13, padding: "3px 0", borderBottom: "1px solid var(--rule)" }}>
-                        {i + 1}. {g}
-                      </div>
-                    ))}
-                  </div>
-
-                  {entry.senses && entry.senses.length > 1 && (
-                    <div className="mb16">
-                      <div className="muted small mb8" style={{ textTransform: "uppercase", letterSpacing: "0.1em" }}>Senses</div>
-                      {entry.senses.map((s) => (
-                        <div key={s.index} style={{ fontSize: 11, padding: "4px 0", borderBottom: "1px solid var(--rule)", opacity: 0.8 }}>
-                          <span style={{ opacity: 0.4 }}>{s.index}.</span> {s.gloss}
-                          {s.semanticField && <span style={{ opacity: 0.4 }}> · {s.semanticField}</span>}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  <div>
-                    <div className="muted small mb8" style={{ textTransform: "uppercase", letterSpacing: "0.1em" }}>Semantic Fields</div>
-                    <div className="phoneme-chips">
-                      {entry.semanticFields.map((f) => (
-                        <span key={f} className="tag">{f}</span>
-                      ))}
-                    </div>
-                  </div>
-
-                  {explanation && (
-                    <div className="mt16">
-                      <div className="muted small mb8" style={{ textTransform: "uppercase", letterSpacing: "0.1em" }}>AI Explanation</div>
-                      <div style={{ fontSize: 11, lineHeight: 1.7, opacity: 0.8, marginBottom: 12 }}>
-                        {explanation.explanation}
-                      </div>
-                      {explanation.crossLinguisticParallels.length > 0 && (
-                        <div>
-                          <div className="muted small mb8" style={{ fontSize: 8, textTransform: "uppercase", letterSpacing: "0.1em" }}>
-                            Cross-linguistic
-                          </div>
-                          {explanation.crossLinguisticParallels.map((p, i) => (
-                            <div key={i} style={{ fontSize: 10, opacity: 0.6, padding: "2px 0" }}>
-                              · {p}
-                            </div>
-                          ))}
-                        </div>
+                    <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
+                      <span className="tag tag-fill">{entry.pos}</span>
+                      {entry.subcategory && (
+                        <span className="tag">{entry.subcategory}</span>
+                      )}
+                      {entry.etymologyType && (
+                        <span className="tag" style={{ opacity: 0.9 }}>{entry.etymologyType}</span>
                       )}
                     </div>
-                  )}
+
+                    {/* Etymology */}
+                    <div className="mb16">
+                      <div className="muted small mb8" style={{ textTransform: "uppercase", letterSpacing: "0.1em" }}>Etymology</div>
+                      <select
+                        value={entry.etymologyType ?? ""}
+                        onChange={(e) => {
+                          const v = (e.target.value || undefined) as LexicalEntry["etymologyType"];
+                          handleUpdateEntry(entry.id, {
+                            etymologyType: v,
+                            ...(v !== "derived" ? { derivedFromEntryId: undefined } : {}),
+                            ...(v !== "borrowed" ? { borrowedFrom: undefined } : {}),
+                          });
+                        }}
+                        style={{ width: "100%", padding: "6px 8px", marginBottom: 8, fontSize: 11 }}
+                      >
+                        <option value="">—</option>
+                        <option value="derived">Derived from another word</option>
+                        <option value="borrowed">Borrowed</option>
+                        <option value="reconstructed">Reconstructed</option>
+                      </select>
+                      {entry.etymologyType === "derived" && (
+                        <select
+                          value={entry.derivedFromEntryId ?? ""}
+                          onChange={(e) => handleUpdateEntry(entry.id, { derivedFromEntryId: e.target.value || undefined })}
+                          style={{ width: "100%", padding: "6px 8px", marginBottom: 8, fontSize: 11 }}
+                        >
+                          <option value="">— Select source word</option>
+                          {entries.filter((e) => e.id !== entry.id).map((e) => (
+                            <option key={e.id} value={e.id}>{e.orthographicForm} ({e.glosses[0]})</option>
+                          ))}
+                        </select>
+                      )}
+                      {entry.etymologyType === "borrowed" && (
+                        <input
+                          type="text"
+                          value={entry.borrowedFrom ?? ""}
+                          onChange={(e) => handleUpdateEntry(entry.id, { borrowedFrom: e.target.value || undefined })}
+                          placeholder="Source language or note"
+                          style={{ width: "100%", padding: "6px 8px", marginBottom: 8, fontSize: 11 }}
+                        />
+                      )}
+                      <input
+                        type="text"
+                        value={entry.etymology ?? ""}
+                        onChange={(e) => handleUpdateEntry(entry.id, { etymology: e.target.value || undefined })}
+                        placeholder="Free-form note"
+                        style={{ width: "100%", padding: "6px 8px", fontSize: 11 }}
+                      />
+                    </div>
+
+                    <div className="mb16">
+                      <div className="muted small mb8" style={{ textTransform: "uppercase", letterSpacing: "0.1em" }}>Glosses</div>
+                      {entry.glosses.map((g, i) => (
+                        <div key={i} style={{ fontSize: 13, padding: "3px 0", borderBottom: "1px solid var(--rule)" }}>
+                          {i + 1}. {g}
+                        </div>
+                      ))}
+                    </div>
+
+                    {entry.senses && entry.senses.length > 1 && (
+                      <div className="mb16">
+                        <div className="muted small mb8" style={{ textTransform: "uppercase", letterSpacing: "0.1em" }}>Senses</div>
+                        {entry.senses.map((s) => (
+                          <div key={s.index} style={{ fontSize: 11, padding: "4px 0", borderBottom: "1px solid var(--rule)", opacity: 0.8 }}>
+                            <span style={{ opacity: 0.4 }}>{s.index}.</span> {s.gloss}
+                            {s.semanticField && <span style={{ opacity: 0.4 }}> · {s.semanticField}</span>}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    <div>
+                      <div className="muted small mb8" style={{ textTransform: "uppercase", letterSpacing: "0.1em" }}>Semantic Fields</div>
+                      <div className="phoneme-chips">
+                        {entry.semanticFields.map((f) => (
+                          <span key={f} className="tag">{f}</span>
+                        ))}
+                      </div>
+                    </div>
+
+                    {explanation && (
+                      <div className="mt16">
+                        <div className="muted small mb8" style={{ textTransform: "uppercase", letterSpacing: "0.1em" }}>AI Explanation</div>
+                        <div style={{ fontSize: 11, lineHeight: 1.7, opacity: 0.8, marginBottom: 12 }}>
+                          {explanation.explanation}
+                        </div>
+                        {explanation.crossLinguisticParallels.length > 0 && (
+                          <div>
+                            <div className="muted small mb8" style={{ fontSize: 8, textTransform: "uppercase", letterSpacing: "0.1em" }}>
+                              Cross-linguistic
+                            </div>
+                            {explanation.crossLinguisticParallels.map((p, i) => (
+                              <div key={i} style={{ fontSize: 10, opacity: 0.6, padding: "2px 0" }}>
+                                · {p}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
             );
           })()}
         </div>
