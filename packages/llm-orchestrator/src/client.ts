@@ -33,7 +33,7 @@ export const DEFAULT_CONFIG: GroqClientConfig = {
   model: process.env["GROQ_MODEL"] ?? "llama-3.1-8b-instant",
   maxTokensStructured: 4096,
   maxTokensStreaming: 8192,
-  maxApiRetries: 1,
+  maxApiRetries: 5,
   baseUrl: "https://api.groq.com/openai/v1",
 };
 
@@ -161,6 +161,7 @@ export async function structuredRequest(opts: StructuredRequestOptions): Promise
       });
 
       if (!response.ok) {
+        const retryAfterHeader = response.headers.get("retry-after");
         const errText = await response.text().catch(() => response.statusText);
         let parsedErrMsg = errText;
         try {
@@ -168,11 +169,21 @@ export async function structuredRequest(opts: StructuredRequestOptions): Promise
           if (json?.error?.message) parsedErrMsg = json.error.message;
         } catch { }
 
+        // 413 is a payload size error — retrying won't help, throw immediately
+        if (response.status === 413) {
+          throw new GroqApiError(413, `Groq API error 413: ${parsedErrMsg}`);
+        }
+
         if (response.status === 400 || response.status === 401 || response.status === 403) {
           throw new GroqApiError(response.status, `Groq API error ${response.status}: ${parsedErrMsg}`);
         }
+
         if ((response.status === 429 || response.status >= 500) && attempt < cfg.maxApiRetries) {
-          await sleep(exponentialBackoff(attempt));
+          // Respect the Retry-After header from Groq (in seconds), fallback to exponential backoff
+          const retryAfterMs = retryAfterHeader
+            ? parseFloat(retryAfterHeader) * 1000 + 1000 // add 1s buffer
+            : exponentialBackoff(attempt);
+          await sleep(retryAfterMs);
           continue;
         }
 

@@ -30,6 +30,8 @@ import { generateWritingSystem } from "@slanger/phonology";
 
 const LEXICON_BATCH_SIZE = 5;
 const TARGET_LEXICON_SIZE = 50; // require at least 50 words before corpus
+/** Delay between LLM calls to stay within Groq 6000 TPM/min free tier */
+const INTER_CALL_DELAY_MS = 12_000; // 12 seconds — allows ~5 calls/min at ~1000-2000 tokens each
 
 export async function runAutonomousPipeline(
   req: AutonomousPipelineRequest,
@@ -94,6 +96,9 @@ export async function runAutonomousPipeline(
     language = { ...language, morphology: morphResult.data.morphology };
     onEvent({ type: "operation_complete", result: morphResult });
 
+    // Rate-limit pause before next LLM call
+    await sleep(INTER_CALL_DELAY_MS);
+
     // ── Step 3: Lexicon (batched) ──────────────────────────────────────────────
     onEvent({ type: "pipeline_progress", step: 3, totalSteps: TOTAL_STEPS, stepName: `Generating vocabulary (target: ${TARGET_LEXICON_SIZE} words)` });
 
@@ -134,13 +139,18 @@ export async function runAutonomousPipeline(
       onEvent({ type: "operation_complete", result: lexResult });
 
       // Guard against infinite loop (allow enough batches to reach TARGET_LEXICON_SIZE)
-      if (batchNum >= 15) { lexiconDone = true; }
+      if (batchNum >= 15) { lexiconDone = true; break; }
+
+      // Rate-limit pause between lexicon batches
+      await sleep(INTER_CALL_DELAY_MS);
     }
 
     // ── Step 5: Corpus (only if we have at least 50 words) ─────────────────────
     let corpusRan = false;
     if (language.lexicon.length >= 50) {
       corpusRan = true;
+      // Rate-limit pause before corpus generation
+      await sleep(INTER_CALL_DELAY_MS);
       onEvent({ type: "pipeline_progress", step: 4, totalSteps: TOTAL_STEPS, stepName: "Generating corpus samples" });
 
       const corpusResult = await generateCorpus({
@@ -158,6 +168,9 @@ export async function runAutonomousPipeline(
       };
       onEvent({ type: "operation_complete", result: corpusResult });
     }
+
+    // Rate-limit pause before consistency check
+    await sleep(INTER_CALL_DELAY_MS);
 
     // ── Step 5: Consistency check ──────────────────────────────────────────────
     onEvent({ type: "pipeline_progress", step: 5, totalSteps: TOTAL_STEPS, stepName: "Running linguistic consistency audit" });
@@ -304,4 +317,8 @@ function deduplicateLexicon(entries: LanguageDefinition["lexicon"]): LanguageDef
     ...e,
     id: `lex_${String(i + 1).padStart(4, "0")}`,
   }));
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
