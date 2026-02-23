@@ -1,4 +1,4 @@
-import type { WritingSystemConfig } from "@slanger/shared-types";
+import type { WritingSystemConfig, PhonemeInventory } from "@slanger/shared-types";
 
 /**
  * Seeded PRNG for deterministic glyph generation.
@@ -69,20 +69,39 @@ function generateProceduralPath(seed: string, aes: WritingSystemConfig["aestheti
 }
 
 /**
- * Procedurally generates glyphs for a writing system config.
+ * Syncs mappings with the inventory and regenerates all necessary glyphs.
  */
-export function regenerateGlyphs(
+export function syncAndRegenerateGlyphs(
+    inventory: PhonemeInventory,
     config: WritingSystemConfig
 ): WritingSystemConfig {
-    const nextGlyphs: Record<string, string> = {};
-    const allGraphemes = new Set(Object.values(config.mappings).flat());
+    const nextMappings = { ...config.mappings };
+    const allPhonemes = [...inventory.consonants, ...inventory.vowels, ...inventory.tones];
+    const graphemes = "abcdefghijklmnopqrstuvwxyzþðßŋχħʕʔ".split("");
 
-    allGraphemes.forEach(g => {
+    allPhonemes.forEach((ph, i) => {
+        const isVowel = inventory.vowels.includes(ph);
+        const omitted = config.type === "abjad" && isVowel;
+
+        if (omitted) {
+            nextMappings[ph] = [];
+        } else if (!nextMappings[ph] || nextMappings[ph].length === 0) {
+            // Missing or empty mapping, assign a base grapheme
+            const g = graphemes[i % graphemes.length] ?? ph;
+            nextMappings[ph] = [g];
+        }
+    });
+
+    const nextGlyphs: Record<string, string> = {};
+    const allUsedGraphemes = new Set(Object.values(nextMappings).flat());
+
+    allUsedGraphemes.forEach(g => {
         nextGlyphs[g] = generateProceduralPath(g, config.aesthetics);
     });
 
     return {
         ...config,
+        mappings: nextMappings,
         glyphs: nextGlyphs
     };
 }

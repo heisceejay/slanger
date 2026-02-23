@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { Language } from "../lib/api";
 import { suggestInventory, updateLanguage } from "../lib/api";
-import { regenerateGlyphs } from "../lib/glyphs";
+import { syncAndRegenerateGlyphs } from "../lib/glyphs";
 
 const CONSONANT_CHART = {
   places: ["Bilabial", "Labiodent.", "Dental", "Alveolar", "Post-alv.", "Palatal", "Velar", "Uvular", "Glottal"],
@@ -59,9 +59,17 @@ export function PhonologyView({ lang, onUpdated }: { lang: Language; onUpdated: 
   function togglePhoneme(ph: string, type: "consonants" | "vowels") {
     const current = [...phon.inventory[type]];
     const idx = current.indexOf(ph);
-    const next = idx >= 0 ? current.filter((x) => x !== ph) : [...current, ph];
-    const updated = { ...lang, phonology: { ...phon, inventory: { ...phon.inventory, [type]: next } } };
-    const saved = updateLanguage(lang.meta.id, { phonology: updated.phonology });
+    const nextInv = idx >= 0 ? current.filter((x) => x !== ph) : [...current, ph];
+    const updatedInventory = { ...phon.inventory, [type]: nextInv };
+
+    let updatedPhonology = { ...phon, inventory: updatedInventory };
+
+    // Sync writing system mappings
+    if (phon.writingSystem) {
+      updatedPhonology.writingSystem = syncAndRegenerateGlyphs(updatedInventory, phon.writingSystem);
+    }
+
+    const saved = updateLanguage(lang.meta.id, { phonology: updatedPhonology });
     if (saved) onUpdated(saved);
   }
 
@@ -74,10 +82,8 @@ export function PhonologyView({ lang, onUpdated }: { lang: Language; onUpdated: 
     };
     let next = { ...ws, ...patch };
 
-    // If aesthetics or type changed, regenerate glyphs
-    if (patch.aesthetics || patch.type) {
-      next = regenerateGlyphs(next);
-    }
+    // Always sync and regenerate on update to catch missing phonemes
+    next = syncAndRegenerateGlyphs(phon.inventory, next);
 
     const saved = updateLanguage(lang.meta.id, { phonology: { ...phon, writingSystem: next } });
     if (saved) onUpdated(saved);
@@ -480,7 +486,12 @@ export function PhonologyView({ lang, onUpdated }: { lang: Language; onUpdated: 
               <div className="panel">
                 <div className="panel-head">
                   <span className="panel-title">Phoneme → Glyph Mappings ({Object.keys(ws?.mappings ?? {}).length})</span>
-                  <span className="muted small" style={{ marginLeft: "auto" }}>
+                  <button
+                    className="btn btn-sm"
+                    style={{ marginLeft: "auto", fontSize: 10, padding: "2px 8px" }}
+                    onClick={() => updateWritingSystem({})}
+                  >Sync Script</button>
+                  <span className="muted small" style={{ marginLeft: 16 }}>
                     {ws?.type === "abjad" ? "Vowels are omitted (abjad)" : `${allPhonemes.length} phonemes in inventory`}
                   </span>
                 </div>
