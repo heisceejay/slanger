@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from "react";
 import type { Language } from "../lib/api";
 import { updateLanguage } from "../lib/api";
-import type { SyntaxConfig } from "@slanger/shared-types";
+import type { SyntaxConfig, PhraseStructureSlot } from "@slanger/shared-types";
 
 // ... existing constants ...
 const WORD_ORDERS = ["SOV", "SVO", "VSO", "VOS", "OVS", "OSV", "free"] as const;
@@ -346,7 +346,7 @@ export function SyntaxView({
               <div className="muted small mb16">No phrase structure defined</div>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 16 }}>
-                {Object.entries(editingStructure).map(([phraseType, slots]) => (
+                {Object.entries(editingStructure).map(([phraseType, slots]: [string, PhraseStructureSlot[]]) => (
                   <div key={phraseType} style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", paddingBottom: 8, borderBottom: "1px dashed var(--rule)" }}>
                     {/* LHS Rule Identity */}
                     <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 60 }}>
@@ -372,7 +372,7 @@ export function SyntaxView({
 
                     {/* RHS Drag and Drop Zone */}
                     <div style={{ display: "flex", gap: 8, flexWrap: "wrap", flex: 1 }}>
-                      {slots.map((slot, index) => (
+                      {(slots as PhraseStructureSlot[]).map((slot: PhraseStructureSlot, index: number) => (
                         <div
                           key={`${phraseType}-${index}`}
                           draggable
@@ -389,7 +389,7 @@ export function SyntaxView({
                           onDrop={(e) => {
                             e.preventDefault();
                             if (!draggedItem || draggedItem.phraseType !== phraseType) return;
-                            const newSlots = [...slots];
+                            const newSlots = [...(slots as PhraseStructureSlot[])];
                             const [movedItem] = newSlots.splice(draggedItem.slotIndex, 1);
                             if (movedItem) {
                               newSlots.splice(index, 0, movedItem);
@@ -421,11 +421,11 @@ export function SyntaxView({
                                 const val = e.target.value;
                                 if (val === "custom...") {
                                   // Transform it into a custom string that isn't exactly "custom..." so the input shows up
-                                  const next = [...slots];
+                                  const next = [...(slots as PhraseStructureSlot[])];
                                   next[index] = { ...slot, label: "X" };
                                   setEditingStructure({ ...editingStructure, [phraseType]: next });
                                 } else {
-                                  const next = [...slots];
+                                  const next = [...(slots as PhraseStructureSlot[])];
                                   next[index] = { ...slot, label: val };
                                   setEditingStructure({ ...editingStructure, [phraseType]: next });
                                 }
@@ -444,7 +444,7 @@ export function SyntaxView({
                               type="text"
                               value={slot.label}
                               onChange={(e) => {
-                                const next = [...slots];
+                                const next = [...(slots as PhraseStructureSlot[])];
                                 next[index] = { ...slot, label: e.target.value };
                                 setEditingStructure({ ...editingStructure, [phraseType]: next });
                               }}
@@ -461,7 +461,7 @@ export function SyntaxView({
                             <button
                               title="Toggle Optional"
                               onClick={() => {
-                                const next = [...slots];
+                                const next = [...(slots as PhraseStructureSlot[])];
                                 next[index] = { ...slot, optional: !slot.optional };
                                 setEditingStructure({ ...editingStructure, [phraseType]: next });
                               }}
@@ -470,7 +470,7 @@ export function SyntaxView({
                             <button
                               title="Toggle Repeatable"
                               onClick={() => {
-                                const next = [...slots];
+                                const next = [...(slots as PhraseStructureSlot[])];
                                 next[index] = { ...slot, repeatable: !slot.repeatable };
                                 setEditingStructure({ ...editingStructure, [phraseType]: next });
                               }}
@@ -479,7 +479,7 @@ export function SyntaxView({
                             <button
                               title="Remove Slot"
                               onClick={() => {
-                                const next = [...slots];
+                                const next = [...(slots as PhraseStructureSlot[])];
                                 next.splice(index, 1);
                                 setEditingStructure({ ...editingStructure, [phraseType]: next });
                               }}
@@ -491,7 +491,7 @@ export function SyntaxView({
 
                       <button
                         onClick={() => {
-                          const next = [...slots];
+                          const next = [...(slots as PhraseStructureSlot[])];
                           next.push({ label: "N", optional: false, repeatable: false });
                           setEditingStructure({ ...editingStructure, [phraseType]: next });
                         }}

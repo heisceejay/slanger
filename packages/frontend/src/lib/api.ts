@@ -313,7 +313,7 @@ export function updateLanguage(id: string, patch: Partial<Language>): Language |
       ...current.meta,
       ...(patch.meta ?? {}),
       id: current.meta.id,     // never overwrite id
-      version: current.meta.version + 1,
+      version: patch.meta?.version ?? current.meta.version,
       updatedAt: new Date().toISOString(),
     },
   };
@@ -374,7 +374,8 @@ function persistWithHistory(previousLang: Language, newLang: Language, stepLabel
   snapshot.meta.versionHistory = undefined;
   const entry: VersionSnapshot = { label: stepLabel, timestamp: new Date().toISOString(), snapshot };
   const history = [...(previousLang.meta.versionHistory ?? []), entry].slice(-MAX_VERSION_HISTORY);
-  const merged: Language = { ...newLang, meta: { ...newLang.meta, versionHistory: history } };
+  const nextVersion = Math.round((previousLang.meta.version + 0.1) * 10) / 10;
+  const merged: Language = { ...newLang, meta: { ...newLang.meta, version: nextVersion, versionHistory: history } };
   return persistServerLang(merged);
 }
 
@@ -391,7 +392,10 @@ export async function suggestInventory(lang: Language): Promise<{ language: Lang
     "/suggest-inventory",
     clone
   );
-  return res.data;
+  return {
+    language: persistWithHistory(lang, res.data.language, "Before: Suggest phoneme inventory"),
+    rationale: res.data.rationale
+  };
 }
 
 export interface FillResult {

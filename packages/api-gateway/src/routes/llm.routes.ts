@@ -52,7 +52,7 @@ const LangBodySchema = z.object({
     preset: z.string(),
     tags: z.array(z.string()),
     world: z.string().optional(),
-    version: z.number().int(),
+    version: z.number(),
   }),
   phonology: z.record(z.unknown()),
   morphology: z.record(z.unknown()),
