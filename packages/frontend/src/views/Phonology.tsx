@@ -47,6 +47,15 @@ export function PhonologyView({ lang, onUpdated }: { lang: Language; onUpdated: 
     setRationale("");
     try {
       const { language, rationale: r } = await suggestInventory(lang);
+
+      // Update: Sync writing system if it exists to ensure new phonemes are mapped
+      if (language.phonology.writingSystem) {
+        language.phonology.writingSystem = syncAndRegenerateGlyphs(
+          language.phonology.inventory,
+          language.phonology.writingSystem
+        );
+      }
+
       onUpdated(language);
       setRationale(r);
     } catch (e) {

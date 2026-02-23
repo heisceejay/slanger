@@ -402,14 +402,25 @@ export interface SuggestResult {
 
 export async function suggestInventory(lang: Language): Promise<{ language: Language; rationale: string }> {
   // Clear the existing phonology so the LLM doesn't just parrot it back when regenerating
-  const clone = { ...lang, phonology: { ...lang.phonology, inventory: { consonants: [], vowels: [] } } };
+  const clone = { ...lang, phonology: { ...lang.phonology, inventory: { consonants: [], vowels: [], tones: [] } } };
   const res = await request<{ data: { language: Language; rationale: string; fromCache: boolean } }>(
     "POST",
     "/suggest-inventory",
     clone
   );
+
+  // Preserve existing settings that the AI operation might not have returned or might have reset
+  const serverLang = res.data.language;
+  const mergedPhonology = {
+    ...serverLang.phonology,
+    orthography: lang.phonology.orthography,
+    writingSystem: lang.phonology.writingSystem,
+    suprasegmentals: lang.phonology.suprasegmentals,
+  };
+  serverLang.phonology = mergedPhonology;
+
   return {
-    language: persistWithHistory(lang, res.data.language, "Before: Suggest phoneme inventory"),
+    language: persistWithHistory(lang, serverLang, "Before: Suggest phoneme inventory"),
     rationale: res.data.rationale
   };
 }

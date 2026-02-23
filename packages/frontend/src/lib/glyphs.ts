@@ -70,23 +70,24 @@ function generateProceduralPath(seed: string, aes: WritingSystemConfig["aestheti
 
 /**
  * Syncs mappings with the inventory and regenerates all necessary glyphs.
+ * Ensures every phoneme has a mapping and every mapping has an SVG glyph.
  */
 export function syncAndRegenerateGlyphs(
     inventory: PhonemeInventory,
     config: WritingSystemConfig
 ): WritingSystemConfig {
-    const nextMappings = { ...config.mappings };
-    const allPhonemes = [...inventory.consonants, ...inventory.vowels, ...inventory.tones];
+    const nextMappings = { ...(config.mappings || {}) };
+    const allPhonemes = [...(inventory.consonants || []), ...(inventory.vowels || []), ...(inventory.tones || [])];
     const graphemes = "abcdefghijklmnopqrstuvwxyzþðßŋχħʕʔ".split("");
 
     allPhonemes.forEach((ph, i) => {
-        const isVowel = inventory.vowels.includes(ph);
+        const isVowel = (inventory.vowels || []).includes(ph);
         const omitted = config.type === "abjad" && isVowel;
 
         if (omitted) {
             nextMappings[ph] = [];
         } else if (!nextMappings[ph] || nextMappings[ph].length === 0) {
-            // Missing or empty mapping, assign a base grapheme
+            // Assign a deterministic grapheme based on index if missing
             const g = graphemes[i % graphemes.length] ?? ph;
             nextMappings[ph] = [g];
         }
