@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { Language } from "../lib/api";
-import { suggestInventory } from "../lib/api";
+import { suggestInventory, updateLanguage } from "../lib/api";
 
 const CONSONANT_CHART = {
   places: ["Bilabial", "Labiodent.", "Dental", "Alveolar", "Post-alv.", "Palatal", "Velar", "Uvular", "Glottal"],
@@ -28,12 +28,17 @@ const VOWEL_CHART = {
   ],
 };
 
+const WRITING_SYSTEM_TYPES = ["alphabet", "abjad", "abugida", "syllabary", "logographic", "hybrid"] as const;
+const GLYPH_STYLES = ["angular", "rounded", "blocky", "cursive"] as const;
+
+type Tab = "inventory" | "phonotactics" | "orthography" | "writing-system";
+
 export function PhonologyView({ lang, onUpdated }: { lang: Language; onUpdated: (l: Language) => void }) {
   const phon = lang.phonology;
   const [suggesting, setSuggesting] = useState(false);
   const [rationale, setRationale] = useState("");
   const [error, setError] = useState("");
-  const [tab, setTab] = useState<"inventory" | "phonotactics" | "orthography">("inventory");
+  const [tab, setTab] = useState<Tab>("inventory");
 
   async function handleSuggest() {
     setSuggesting(true);
@@ -49,6 +54,30 @@ export function PhonologyView({ lang, onUpdated }: { lang: Language; onUpdated: 
       setSuggesting(false);
     }
   }
+
+  function togglePhoneme(ph: string, type: "consonants" | "vowels") {
+    const current = [...phon.inventory[type]];
+    const idx = current.indexOf(ph);
+    const next = idx >= 0 ? current.filter((x) => x !== ph) : [...current, ph];
+    const updated = { ...lang, phonology: { ...phon, inventory: { ...phon.inventory, [type]: next } } };
+    const saved = updateLanguage(lang.meta.id, { phonology: updated.phonology });
+    if (saved) onUpdated(saved);
+  }
+
+  function updateWritingSystem(patch: Partial<NonNullable<Language["phonology"]["writingSystem"]>>) {
+    const ws = phon.writingSystem ?? {
+      type: "alphabet" as const,
+      mappings: {},
+      aesthetics: { complexity: 0.5, style: "angular" as const, strokeDensity: 0.5 },
+      glyphs: {},
+    };
+    const next = { ...ws, ...patch };
+    const saved = updateLanguage(lang.meta.id, { phonology: { ...phon, writingSystem: next } });
+    if (saved) onUpdated(saved);
+  }
+
+  const ws = phon.writingSystem;
+  const allPhonemes = [...phon.inventory.consonants, ...phon.inventory.vowels];
 
   return (
     <>
@@ -74,21 +103,24 @@ export function PhonologyView({ lang, onUpdated }: { lang: Language; onUpdated: 
         )}
 
         <div className="flex-row mb16" style={{ borderBottom: "1px solid var(--ink)" }}>
-          {(["inventory", "phonotactics", "orthography"] as const).map((t) => (
+          {(["inventory", "phonotactics", "orthography", "writing-system"] as Tab[]).map((t) => (
             <button key={t} onClick={() => setTab(t)} style={{
               background: "none", border: "none",
               borderBottom: tab === t ? "2px solid var(--ink)" : "2px solid transparent",
               padding: "8px 16px 10px", cursor: "pointer", fontSize: 10,
               letterSpacing: "0.12em", textTransform: "uppercase", fontFamily: "var(--mono)",
               marginBottom: -1, transition: "var(--transition)",
-            }}>{t}</button>
+            }}>{t.replace("-", " ")}</button>
           ))}
         </div>
 
         {tab === "inventory" && (
           <div>
             <div className="panel mb24">
-              <div className="panel-head"><span className="panel-title">Consonants ({phon.inventory.consonants.length})</span></div>
+              <div className="panel-head">
+                <span className="panel-title">Consonants ({phon.inventory.consonants.length})</span>
+                <span className="muted small" style={{ marginLeft: "auto" }}>Click a phoneme to toggle it in/out of the inventory</span>
+              </div>
               <div className="panel-body" style={{ overflowX: "auto" }}>
                 <table style={{ borderCollapse: "collapse", fontSize: 11, minWidth: 600 }}>
                   <thead>
@@ -106,15 +138,27 @@ export function PhonologyView({ lang, onUpdated }: { lang: Language; onUpdated: 
                         {CONSONANT_CHART.cells[mi]!.map((cell, pi) => (
                           <td key={pi} style={{ padding: "6px 8px", textAlign: "center", border: "1px solid var(--rule)", background: !cell ? "var(--paper-mid)" : "transparent" }}>
                             <div style={{ display: "flex", gap: 4, justifyContent: "center" }}>
-                              {cell.split(" ").filter(Boolean).map((ph) => (
-                                <span key={ph} style={{
-                                  fontFamily: "var(--mono)", fontSize: 14, width: 22, height: 22,
-                                  display: "flex", alignItems: "center", justifyContent: "center",
-                                  background: phon.inventory.consonants.includes(ph) ? "var(--ink)" : "transparent",
-                                  color: phon.inventory.consonants.includes(ph) ? "var(--paper)" : "var(--ink)",
-                                  border: phon.inventory.consonants.includes(ph) ? "1px solid var(--ink)" : "1px solid transparent",
-                                }}>{ph}</span>
-                              ))}
+                              {cell.split(" ").filter(Boolean).map((ph) => {
+                                const active = phon.inventory.consonants.includes(ph);
+                                return (
+                                  <span
+                                    key={ph}
+                                    title={active ? `Remove /${ph}/` : `Add /${ph}/`}
+                                    onClick={() => togglePhoneme(ph, "consonants")}
+                                    style={{
+                                      fontFamily: "var(--mono)", fontSize: 14, width: 28, height: 28,
+                                      display: "flex", alignItems: "center", justifyContent: "center",
+                                      background: active ? "var(--ink)" : "transparent",
+                                      color: active ? "var(--paper)" : "var(--ink)",
+                                      border: active ? "1px solid var(--ink)" : "1px solid transparent",
+                                      cursor: "pointer",
+                                      borderRadius: 2,
+                                      transition: "var(--transition)",
+                                      userSelect: "none",
+                                    }}
+                                  >{ph}</span>
+                                );
+                              })}
                             </div>
                           </td>
                         ))}
@@ -127,7 +171,10 @@ export function PhonologyView({ lang, onUpdated }: { lang: Language; onUpdated: 
 
             <div className="grid-2">
               <div className="panel">
-                <div className="panel-head"><span className="panel-title">Vowels ({phon.inventory.vowels.length})</span></div>
+                <div className="panel-head">
+                  <span className="panel-title">Vowels ({phon.inventory.vowels.length})</span>
+                  <span className="muted small" style={{ marginLeft: "auto" }}>Click to toggle</span>
+                </div>
                 <div className="panel-body">
                   <table style={{ borderCollapse: "collapse", width: "100%", fontSize: 11 }}>
                     <thead>
@@ -145,14 +192,27 @@ export function PhonologyView({ lang, onUpdated }: { lang: Language; onUpdated: 
                           {VOWEL_CHART.cells[hi]!.map((cell, bi) => (
                             <td key={bi} style={{ padding: "6px 8px", textAlign: "center", border: "1px solid var(--rule)" }}>
                               <div style={{ display: "flex", gap: 4, justifyContent: "center" }}>
-                                {cell.split(" ").filter(Boolean).map((ph) => (
-                                  <span key={ph} style={{
-                                    fontFamily: "var(--mono)", fontSize: 14, width: 22, height: 22,
-                                    display: "flex", alignItems: "center", justifyContent: "center",
-                                    background: phon.inventory.vowels.includes(ph) ? "var(--ink)" : "transparent",
-                                    color: phon.inventory.vowels.includes(ph) ? "var(--paper)" : "var(--ink)",
-                                  }}>{ph}</span>
-                                ))}
+                                {cell.split(" ").filter(Boolean).map((ph) => {
+                                  const active = phon.inventory.vowels.includes(ph);
+                                  return (
+                                    <span
+                                      key={ph}
+                                      title={active ? `Remove /${ph}/` : `Add /${ph}/`}
+                                      onClick={() => togglePhoneme(ph, "vowels")}
+                                      style={{
+                                        fontFamily: "var(--mono)", fontSize: 14, width: 28, height: 28,
+                                        display: "flex", alignItems: "center", justifyContent: "center",
+                                        background: active ? "var(--accent)" : "transparent",
+                                        color: active ? "var(--paper)" : "var(--ink)",
+                                        border: active ? "1px solid var(--accent)" : "1px solid transparent",
+                                        cursor: "pointer",
+                                        borderRadius: 2,
+                                        transition: "var(--transition)",
+                                        userSelect: "none",
+                                      }}
+                                    >{ph}</span>
+                                  );
+                                })}
                               </div>
                             </td>
                           ))}
@@ -174,18 +234,16 @@ export function PhonologyView({ lang, onUpdated }: { lang: Language; onUpdated: 
                           type="button"
                           onClick={() => {
                             const next = { ...phon.suprasegmentals, [key]: !val };
-                            onUpdated({ ...lang, phonology: { ...phon, suprasegmentals: next } });
+                            const saved = updateLanguage(lang.meta.id, { phonology: { ...phon, suprasegmentals: next } });
+                            if (saved) onUpdated(saved);
                           }}
                           style={{
                             fontFamily: "var(--mono)",
                             background: val ? "var(--ink)" : "transparent",
                             color: val ? "var(--paper)" : "var(--ink)",
                             border: "1px solid " + (val ? "var(--ink)" : "var(--rule-heavy)"),
-                            padding: "4px 10px",
-                            fontSize: 9,
-                            letterSpacing: "0.1em",
-                            cursor: "pointer",
-                            transition: "var(--transition)",
+                            padding: "4px 10px", fontSize: 9, letterSpacing: "0.1em",
+                            cursor: "pointer", transition: "var(--transition)",
                           }}
                         >
                           {val ? "YES" : "NO"}
@@ -196,16 +254,20 @@ export function PhonologyView({ lang, onUpdated }: { lang: Language; onUpdated: 
                 </div>
 
                 <div className="panel">
-                  <div className="panel-head"><span className="panel-title">Inventory</span></div>
+                  <div className="panel-head"><span className="panel-title">Active Inventory</span></div>
                   <div className="panel-body">
                     <div className="muted small mb8" style={{ letterSpacing: "0.1em", textTransform: "uppercase" }}>Consonants</div>
                     <div className="phoneme-chips mb16">
-                      {phon.inventory.consonants.map(c => <span key={c} className="phoneme-chip active">{c}</span>)}
+                      {phon.inventory.consonants.map(c => (
+                        <span key={c} className="phoneme-chip active" onClick={() => togglePhoneme(c, "consonants")} style={{ cursor: "pointer" }} title="Click to remove">{c}</span>
+                      ))}
                       {phon.inventory.consonants.length === 0 && <span className="muted small">None defined</span>}
                     </div>
                     <div className="muted small mb8" style={{ letterSpacing: "0.1em", textTransform: "uppercase" }}>Vowels</div>
                     <div className="phoneme-chips">
-                      {phon.inventory.vowels.map(v => <span key={v} className="phoneme-chip active">{v}</span>)}
+                      {phon.inventory.vowels.map(v => (
+                        <span key={v} className="phoneme-chip active" onClick={() => togglePhoneme(v, "vowels")} style={{ cursor: "pointer" }} title="Click to remove">{v}</span>
+                      ))}
                       {phon.inventory.vowels.length === 0 && <span className="muted small">None defined</span>}
                     </div>
                   </div>
@@ -294,6 +356,152 @@ export function PhonologyView({ lang, onUpdated }: { lang: Language; onUpdated: 
                   )}
                 </tbody>
               </table>
+            </div>
+          </div>
+        )}
+
+        {tab === "writing-system" && (
+          <div>
+            {/* Header row: type selector + aesthetics */}
+            <div className="grid-2 mb16">
+              <div className="panel">
+                <div className="panel-head"><span className="panel-title">Writing System Type</span></div>
+                <div className="panel-body" style={{ padding: 0 }}>
+                  {WRITING_SYSTEM_TYPES.map((t) => {
+                    const active = (ws?.type ?? "alphabet") === t;
+                    return (
+                      <div key={t} onClick={() => updateWritingSystem({ type: t })} style={{
+                        display: "flex", alignItems: "center", gap: 10, padding: "12px 16px",
+                        borderBottom: "1px solid var(--rule)", cursor: "pointer",
+                        background: active ? "var(--paper-mid)" : "transparent",
+                        transition: "var(--transition)",
+                      }}>
+                        <span style={{
+                          width: 8, height: 8, borderRadius: "50%",
+                          background: active ? "var(--ink)" : "transparent",
+                          border: "1px solid var(--ink)", flexShrink: 0,
+                        }} />
+                        <span style={{ fontFamily: "var(--mono)", fontSize: 12, fontWeight: active ? 600 : 400 }}>{t}</span>
+                        <span className="muted small" style={{ marginLeft: "auto", textAlign: "right", maxWidth: 200 }}>
+                          {t === "alphabet" && "Full vowel + consonant mapping"}
+                          {t === "abjad" && "Consonants only (Arabic, Hebrew)"}
+                          {t === "abugida" && "Consonants with vowel diacritics (Devanagari)"}
+                          {t === "syllabary" && "One glyph per syllable (Katakana)"}
+                          {t === "logographic" && "One glyph per morpheme (Chinese)"}
+                          {t === "hybrid" && "Mixed system"}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div>
+                <div className="panel mb16">
+                  <div className="panel-head"><span className="panel-title">Aesthetics</span></div>
+                  <div className="panel-body">
+                    <div className="muted small mb8" style={{ letterSpacing: "0.1em", textTransform: "uppercase" }}>Style</div>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
+                      {GLYPH_STYLES.map((s) => {
+                        const active = (ws?.aesthetics?.style ?? "angular") === s;
+                        return (
+                          <button key={s} onClick={() => updateWritingSystem({ aesthetics: { ...(ws?.aesthetics ?? { complexity: 0.5, strokeDensity: 0.5, style: "angular" }), style: s } })}
+                            style={{
+                              fontFamily: "var(--mono)", fontSize: 10, padding: "5px 12px",
+                              background: active ? "var(--ink)" : "transparent",
+                              color: active ? "var(--paper)" : "var(--ink)",
+                              border: "1px solid " + (active ? "var(--ink)" : "var(--rule-heavy)"),
+                              cursor: "pointer", letterSpacing: "0.08em", transition: "var(--transition)",
+                            }}
+                          >{s}</button>
+                        );
+                      })}
+                    </div>
+
+                    <div className="muted small mb8" style={{ letterSpacing: "0.1em", textTransform: "uppercase" }}>Complexity</div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+                      <input
+                        type="range" min={0} max={1} step={0.05}
+                        value={ws?.aesthetics?.complexity ?? 0.5}
+                        onChange={(e) => updateWritingSystem({ aesthetics: { ...(ws?.aesthetics ?? { strokeDensity: 0.5, style: "angular" }), complexity: Number(e.target.value) } })}
+                        style={{ flex: 1 }}
+                      />
+                      <span style={{ fontFamily: "var(--mono)", fontSize: 11, opacity: 0.7, width: 32, textAlign: "right" }}>
+                        {((ws?.aesthetics?.complexity ?? 0.5) * 100).toFixed(0)}%
+                      </span>
+                    </div>
+
+                    <div className="muted small mb8" style={{ letterSpacing: "0.1em", textTransform: "uppercase" }}>Stroke Density</div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                      <input
+                        type="range" min={0} max={1} step={0.05}
+                        value={ws?.aesthetics?.strokeDensity ?? 0.5}
+                        onChange={(e) => updateWritingSystem({ aesthetics: { ...(ws?.aesthetics ?? { complexity: 0.5, style: "angular" }), strokeDensity: Number(e.target.value) } })}
+                        style={{ flex: 1 }}
+                      />
+                      <span style={{ fontFamily: "var(--mono)", fontSize: 11, opacity: 0.7, width: 32, textAlign: "right" }}>
+                        {((ws?.aesthetics?.strokeDensity ?? 0.5) * 100).toFixed(0)}%
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Phoneme → Glyph Mapping Table */}
+            <div className="panel">
+              <div className="panel-head">
+                <span className="panel-title">Phoneme → Glyph Mappings ({Object.keys(ws?.mappings ?? {}).length})</span>
+                <span className="muted small" style={{ marginLeft: "auto" }}>
+                  {ws?.type === "abjad" ? "Vowels are omitted (abjad)" : `${allPhonemes.length} phonemes in inventory`}
+                </span>
+              </div>
+              <div className="panel-body" style={{ padding: 0 }}>
+                {allPhonemes.length === 0 ? (
+                  <div style={{ padding: 16 }} className="muted small">No phonemes in inventory. Define your inventory first.</div>
+                ) : (
+                  <table className="tbl tbl-mono">
+                    <thead>
+                      <tr>
+                        <th>Phoneme (IPA)</th>
+                        <th>Type</th>
+                        <th>Glyph(s)</th>
+                        <th>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {allPhonemes.map((ph) => {
+                        const isVowel = phon.inventory.vowels.includes(ph);
+                        const glyphs = ws?.mappings?.[ph] ?? [];
+                        const omitted = ws?.type === "abjad" && isVowel;
+                        return (
+                          <tr key={ph} style={{ opacity: omitted ? 0.4 : 1 }}>
+                            <td style={{ fontSize: 18 }}>{ph}</td>
+                            <td>
+                              <span className={`tag ${isVowel ? "tag-fill" : ""}`} style={{ fontSize: 9 }}>
+                                {isVowel ? "vowel" : "consonant"}
+                              </span>
+                            </td>
+                            <td style={{ fontSize: 16 }}>
+                              {omitted ? <span className="muted small">omitted (abjad)</span>
+                                : glyphs.length > 0 ? glyphs.join(", ")
+                                  : <span className="muted small">—</span>}
+                            </td>
+                            <td>
+                              <span style={{
+                                fontSize: 9, letterSpacing: "0.08em", fontFamily: "var(--mono)",
+                                color: omitted || glyphs.length > 0 ? "var(--success, #4a7)" : "var(--error, #c44)",
+                              }}>
+                                {omitted ? "OK (abjad)" : glyphs.length > 0 ? "mapped" : "unmapped"}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                )}
+              </div>
             </div>
           </div>
         )}

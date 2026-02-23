@@ -70,6 +70,16 @@ export interface PhonologyConfig {
     hasVowelLength: boolean;
     hasPhonemicNasalization: boolean;
   };
+  writingSystem?: {
+    type: "alphabet" | "abjad" | "abugida" | "syllabary" | "logographic" | "hybrid";
+    mappings: Record<string, string[]>;
+    aesthetics: {
+      complexity: number;
+      style: "angular" | "rounded" | "blocky" | "cursive";
+      strokeDensity: number;
+    };
+    glyphs: Record<string, string>;
+  };
 }
 
 export interface MorphologyConfig {
@@ -79,6 +89,12 @@ export interface MorphologyConfig {
   morphemeOrder: string[];
   derivationalRules: { id: string; sourcePos: string; targetPos: string; label: string; affix: string; affixType: string }[];
   alternationRules: { id: string; trigger?: string; input?: string; output?: string; boundary?: string; description?: string; pattern?: string; example?: string }[];
+  templatic?: {
+    enabled: boolean;
+    rootTemplates: string[];
+    vocaloidPatterns: Record<string, string>;
+    slots: string[];
+  };
 }
 
 export interface SyntaxConfig {

@@ -261,6 +261,149 @@ export function MorphologyView({
           </div>
         </div>
 
+        {/* Templatic Morphology panel */}
+        <div className="panel mb16">
+          <div className="panel-head">
+            <span className="panel-title">Templatic Morphology</span>
+            <span className="muted small" style={{ marginLeft: 8 }}>root-and-pattern (Semitic-style)</span>
+            <div style={{ marginLeft: "auto" }}>
+              <button
+                type="button"
+                onClick={() => {
+                  const enabled = !(morph.templatic?.enabled ?? false);
+                  handleMorphChange({
+                    templatic: {
+                      enabled,
+                      rootTemplates: morph.templatic?.rootTemplates ?? ["CVCVC"],
+                      vocaloidPatterns: morph.templatic?.vocaloidPatterns ?? {},
+                      slots: morph.templatic?.slots ?? ["root", "tense"],
+                    },
+                  });
+                }}
+                style={{
+                  fontFamily: "var(--mono)", fontSize: 10, letterSpacing: "0.1em",
+                  padding: "4px 12px", cursor: "pointer", transition: "var(--transition)",
+                  background: morph.templatic?.enabled ? "var(--ink)" : "transparent",
+                  color: morph.templatic?.enabled ? "var(--paper)" : "var(--ink)",
+                  border: "1px solid " + (morph.templatic?.enabled ? "var(--ink)" : "var(--rule-heavy)"),
+                }}
+              >
+                {morph.templatic?.enabled ? "ENABLED" : "DISABLED"}
+              </button>
+            </div>
+          </div>
+          {morph.templatic?.enabled && (
+            <div className="panel-body">
+              <div className="grid-2">
+                <div>
+                  <div className="muted small mb8" style={{ letterSpacing: "0.1em", textTransform: "uppercase" }}>Root Templates</div>
+                  <div className="phoneme-chips mb8">
+                    {(morph.templatic.rootTemplates ?? []).map((rt, i) => (
+                      <span key={i} className="tag tag-fill" style={{ fontFamily: "var(--mono)", fontSize: 13, display: "flex", alignItems: "center", gap: 6 }}>
+                        {rt}
+                        <span
+                          onClick={() => {
+                            const next = morph.templatic!.rootTemplates.filter((_, j) => j !== i);
+                            handleMorphChange({ templatic: { ...morph.templatic!, rootTemplates: next } });
+                          }}
+                          style={{ cursor: "pointer", opacity: 0.5, fontSize: 10 }}
+                        >×</span>
+                      </span>
+                    ))}
+                  </div>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <input
+                      id="new-root-template"
+                      placeholder="e.g. CVCVC"
+                      style={{
+                        flex: 1, padding: "6px 10px", fontFamily: "var(--mono)", fontSize: 12,
+                        border: "1px solid var(--rule-heavy)", background: "var(--paper)", color: "var(--ink)",
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          const val = (e.target as HTMLInputElement).value.trim().toUpperCase();
+                          if (!val) return;
+                          const next = [...(morph.templatic?.rootTemplates ?? []), val];
+                          handleMorphChange({ templatic: { ...morph.templatic!, rootTemplates: next } });
+                          (e.target as HTMLInputElement).value = "";
+                        }
+                      }}
+                    />
+                    <button className="btn btn-sm" onClick={() => {
+                      const inp = document.getElementById("new-root-template") as HTMLInputElement;
+                      const val = inp.value.trim().toUpperCase();
+                      if (!val) return;
+                      const next = [...(morph.templatic?.rootTemplates ?? []), val];
+                      handleMorphChange({ templatic: { ...morph.templatic!, rootTemplates: next } });
+                      inp.value = "";
+                    }}>Add</button>
+                  </div>
+                  <div className="muted small" style={{ marginTop: 6, opacity: 0.5 }}>Use C=consonant slot, V=vowel slot. Press Enter or Add.</div>
+                </div>
+                <div>
+                  <div className="muted small mb8" style={{ letterSpacing: "0.1em", textTransform: "uppercase" }}>Vocalism Patterns</div>
+                  <table className="tbl tbl-mono" style={{ marginBottom: 8 }}>
+                    <thead><tr><th>Category</th><th>Pattern</th><th></th></tr></thead>
+                    <tbody>
+                      {Object.entries(morph.templatic.vocaloidPatterns ?? {}).map(([cat, pat]) => (
+                        <tr key={cat}>
+                          <td style={{ fontSize: 11 }}>{cat}</td>
+                          <td style={{ fontSize: 13 }}>{pat}</td>
+                          <td>
+                            <button
+                              style={{ background: "none", border: "none", cursor: "pointer", opacity: 0.5, fontSize: 11 }}
+                              onClick={() => {
+                                const next = { ...morph.templatic!.vocaloidPatterns };
+                                delete next[cat];
+                                handleMorphChange({ templatic: { ...morph.templatic!, vocaloidPatterns: next } });
+                              }}
+                            >×</button>
+                          </td>
+                        </tr>
+                      ))}
+                      {Object.keys(morph.templatic.vocaloidPatterns ?? {}).length === 0 && (
+                        <tr><td colSpan={3} style={{ opacity: 0.4, textAlign: "center" }}>No patterns yet</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <input id="new-voc-cat" placeholder="e.g. verb.tense.past" style={{ flex: 1.5, padding: "5px 8px", fontFamily: "var(--mono)", fontSize: 11, border: "1px solid var(--rule-heavy)", background: "var(--paper)", color: "var(--ink)" }} />
+                    <input id="new-voc-pat" placeholder="e.g. a-a" style={{ flex: 1, padding: "5px 8px", fontFamily: "var(--mono)", fontSize: 11, border: "1px solid var(--rule-heavy)", background: "var(--paper)", color: "var(--ink)" }} />
+                    <button className="btn btn-sm" onClick={() => {
+                      const cat = (document.getElementById("new-voc-cat") as HTMLInputElement).value.trim();
+                      const pat = (document.getElementById("new-voc-pat") as HTMLInputElement).value.trim();
+                      if (!cat || !pat) return;
+                      handleMorphChange({ templatic: { ...morph.templatic!, vocaloidPatterns: { ...morph.templatic!.vocaloidPatterns, [cat]: pat } } });
+                      (document.getElementById("new-voc-cat") as HTMLInputElement).value = "";
+                      (document.getElementById("new-voc-pat") as HTMLInputElement).value = "";
+                    }}>Add</button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Slots */}
+              <div className="mt16">
+                <div className="muted small mb8" style={{ letterSpacing: "0.1em", textTransform: "uppercase" }}>Morpheme Slots</div>
+                <div className="phoneme-chips">
+                  {(morph.templatic.slots ?? []).map((s, i) => (
+                    <span key={i} className="tag" style={{ fontFamily: "var(--mono)", fontSize: 11, display: "flex", alignItems: "center", gap: 4 }}>
+                      <span style={{ opacity: 0.4, fontSize: 9 }}>{i + 1}.</span> {s}
+                    </span>
+                  ))}
+                  {(morph.templatic.slots ?? []).length === 0 && <span className="muted small">No slots defined</span>}
+                </div>
+              </div>
+            </div>
+          )}
+          {!morph.templatic?.enabled && (
+            <div className="panel-body">
+              <div className="muted small" style={{ opacity: 0.5 }}>
+                Enable templatic morphology for root-and-pattern systems like Arabic or Hebrew, where words are derived by inserting vowels into a consonantal root skeleton (e.g. k-t-b → kataba, kitaab).
+              </div>
+            </div>
+          )}
+        </div>
+
         {/* Morpheme order slot diagram */}
         <div className="panel mb16">
           <div className="panel-head"><span className="panel-title">Morpheme order</span></div>
