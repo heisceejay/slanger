@@ -32,7 +32,7 @@ export interface OpenRouterClientConfig {
 
 export const DEFAULT_CONFIG: OpenRouterClientConfig = {
   apiKey: process.env["OPENROUTER_API_KEY"] ?? "",
-  model: process.env["OPENROUTER_MODEL"] ?? "mistralai/mistral-7b-instruct:free",
+  model: process.env["OPENROUTER_MODEL"] ?? "anthropic/claude-3-haiku",
   maxTokensStructured: 4096,
   maxTokensStreaming: 8192,
   maxApiRetries: 3,
