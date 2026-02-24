@@ -1,25 +1,25 @@
 /**
- * Groq API client — fetch-based, no SDK dependency.
+ * LLM API client — fetch-based, OpenAI-compatible REST API.
  *
- * Uses the Groq OpenAI-compatible chat completions REST endpoint.
- * Default: Llama 3.1 8B Instant (free tier, fast). Handles structured (JSON)
- * requests, streaming (SSE), retries, and token usage tracking.
+ * Defaults to Google Gemini API (via its OpenAI compatibility layer),
+ * specifically gemini-2.5-flash (fast, large context). Handles structured
+ * (JSON) requests, streaming (SSE), retries, and token usage tracking.
  */
 
 import type { StreamEvent, OperationName } from "./types.js";
 
-export class GroqApiError extends Error {
+export class LlmApiError extends Error {
   statusCode: number;
   constructor(status: number, message: string) {
     super(message);
-    this.name = "GroqApiError";
+    this.name = "LlmApiError";
     this.statusCode = status;
   }
 }
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 
-export interface GroqClientConfig {
+export interface LlmClientConfig {
   apiKey: string;
   model: string;
   maxTokensStructured: number;
@@ -28,29 +28,29 @@ export interface GroqClientConfig {
   baseUrl: string;
 }
 
-export const DEFAULT_CONFIG: GroqClientConfig = {
-  apiKey: process.env["GROQ_API_KEY"] ?? "",
-  model: process.env["GROQ_MODEL"] ?? "llama-3.1-8b-instant",
+export const DEFAULT_CONFIG: LlmClientConfig = {
+  apiKey: process.env["GEMINI_API_KEY"] ?? process.env["LLM_API_KEY"] ?? "",
+  model: process.env["GEMINI_MODEL"] ?? process.env["LLM_MODEL"] ?? "gemini-2.5-flash",
   maxTokensStructured: 4096,
   maxTokensStreaming: 8192,
   maxApiRetries: 5,
-  baseUrl: "https://api.groq.com/openai/v1",
+  baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai",
 };
 
 export type FetchFn = typeof globalThis.fetch;
 
-let _config: GroqClientConfig = { ...DEFAULT_CONFIG };
+let _config: LlmClientConfig = { ...DEFAULT_CONFIG };
 let _fetch: FetchFn = globalThis.fetch;
 
 export function initClient(
-  config: Partial<GroqClientConfig> = {},
+  config: Partial<LlmClientConfig> = {},
   fetchFn?: FetchFn
 ): void {
   _config = { ...DEFAULT_CONFIG, ...config };
   if (fetchFn) _fetch = fetchFn;
 }
 
-export function getConfig(): GroqClientConfig { return _config; }
+export function getConfig(): LlmClientConfig { return _config; }
 export function injectMockFetch(fn: FetchFn): void { _fetch = fn; }
 export function resetFetch(): void { _fetch = globalThis.fetch; }
 
@@ -76,23 +76,23 @@ export function getUsageSummary() {
   };
 }
 
-// ─── Groq REST types (OpenAI-compatible) ──────────────────────────────────────
+// ─── REST types (OpenAI-compatible) ──────────────────────────────────────
 
-interface GroqMessage {
+interface LlmMessage {
   role: "system" | "user" | "assistant";
   content: string;
 }
 
-interface GroqRequest {
+interface LlmRequest {
   model: string;
-  messages: GroqMessage[];
+  messages: LlmMessage[];
   max_tokens?: number;
-  response_format?: { type: "json_object" };
+  response_format?: { type: "json_object" | "text" };
   stream?: boolean;
   temperature?: number;
 }
 
-interface GroqResponse {
+interface LlmResponse {
   choices: Array<{
     message: { content: string; role: string };
     finish_reason: string;
@@ -104,7 +104,7 @@ interface GroqResponse {
   };
 }
 
-interface GroqStreamChunk {
+interface LlmStreamChunk {
   choices: Array<{
     delta: { content?: string; role?: string };
     finish_reason?: string;
@@ -130,7 +130,7 @@ export async function structuredRequest(opts: StructuredRequestOptions): Promise
   const cfg = _config;
   const url = `${cfg.baseUrl}/chat/completions`;
 
-  const body: GroqRequest = {
+  const body: LlmRequest = {
     model: cfg.model,
     messages: [
       {
@@ -176,15 +176,15 @@ export async function structuredRequest(opts: StructuredRequestOptions): Promise
 
         // 413 is a payload size error — retrying won't help, throw immediately
         if (response.status === 413) {
-          throw new GroqApiError(413, `Groq API error 413: ${parsedErrMsg}`);
+          throw new LlmApiError(413, `LLM API error 413 (Payload Too Large): ${parsedErrMsg}`);
         }
 
         if (response.status === 400 || response.status === 401 || response.status === 403) {
-          throw new GroqApiError(response.status, `Groq API error ${response.status}: ${parsedErrMsg}`);
+          throw new LlmApiError(response.status, `LLM API error ${response.status}: ${parsedErrMsg}`);
         }
 
         if ((response.status === 429 || response.status >= 500) && attempt < cfg.maxApiRetries) {
-          // Respect the Retry-After header from Groq (in seconds), fallback to exponential backoff
+          // Respect the Retry-After header from the API (in seconds), fallback to exponential backoff
           const retryAfterMs = retryAfterHeader
             ? parseFloat(retryAfterHeader) * 1000 + 1000 // add 1s buffer
             : exponentialBackoff(attempt);
@@ -193,12 +193,12 @@ export async function structuredRequest(opts: StructuredRequestOptions): Promise
         }
 
         if (response.status === 429) {
-          throw new GroqApiError(429, `LLM Rate Limit Exceeded: ${parsedErrMsg}`);
+          throw new LlmApiError(429, `LLM Rate Limit Exceeded: ${parsedErrMsg}`);
         }
-        throw new GroqApiError(response.status, `Groq API error ${response.status}: ${parsedErrMsg}`);
+        throw new LlmApiError(response.status, `LLM API error ${response.status}: ${parsedErrMsg}`);
       }
 
-      const data = await response.json() as GroqResponse;
+      const data = await response.json() as LlmResponse;
       const text = data.choices?.[0]?.message.content ?? "";
 
       const usage = data.usage;
@@ -220,7 +220,7 @@ export async function structuredRequest(opts: StructuredRequestOptions): Promise
     }
   }
 
-  throw lastError ?? new Error("Groq structured request failed after retries.");
+  throw lastError ?? new Error("LLM structured request failed after retries.");
 }
 
 // ─── Streaming request ────────────────────────────────────────────────────────
@@ -239,7 +239,7 @@ export async function streamingRequest(opts: StreamingRequestOptions): Promise<s
 
   opts.onEvent({ type: "operation_start", operation: opts.operation, attempt: 1 });
 
-  const body: GroqRequest = {
+  const body: LlmRequest = {
     model: cfg.model,
     messages: [
       { role: "system", content: opts.systemPrompt },
@@ -280,9 +280,9 @@ export async function streamingRequest(opts: StreamingRequestOptions): Promise<s
     } catch { }
 
     if (response.status === 429) {
-      throw new GroqApiError(429, `LLM Rate Limit Exceeded: ${parsedErrMsg}`);
+      throw new LlmApiError(429, `LLM Rate Limit Exceeded: ${parsedErrMsg}`);
     }
-    throw new GroqApiError(response.status, `Groq streaming error ${response.status}: ${parsedErrMsg}`);
+    throw new LlmApiError(response.status, `LLM streaming error ${response.status}: ${parsedErrMsg}`);
   }
 
   if (!response.body) throw new Error("Response body is null");
@@ -309,7 +309,7 @@ export async function streamingRequest(opts: StreamingRequestOptions): Promise<s
       if (data === "[DONE]") continue;
 
       try {
-        const chunk = JSON.parse(data) as GroqStreamChunk;
+        const chunk = JSON.parse(data) as LlmStreamChunk;
         const delta = chunk.choices?.[0]?.delta?.content;
         if (delta) {
           accumulated += delta;

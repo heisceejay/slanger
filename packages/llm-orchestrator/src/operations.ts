@@ -4,7 +4,7 @@
  * Each operation:
  *  1. Checks cache
  *  2. Builds prompt
- *  3. Calls Groq with validation-gated retry (max 3 attempts)
+ *  3. Calls LLM API with validation-gated retry (max 3 attempts)
  *  4. Parses and validates response
  *  5. Stores in cache
  *  6. Returns typed LLMOperationResult

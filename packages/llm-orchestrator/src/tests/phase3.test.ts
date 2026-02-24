@@ -67,9 +67,9 @@ function ok(val: unknown, msg?: string): void {
   if (!val) throw new Error(msg ?? `Expected truthy, got ${JSON.stringify(val)}`);
 }
 
-// ─── Mock fetch helpers (Groq OpenAI-compatible format) ───────────────────────
+// ─── Mock fetch helpers (Llm OpenAI-compatible format) ───────────────────────
 
-function mockGroqResponse(body: unknown): FetchFn {
+function mockLlmResponse(body: unknown): FetchFn {
   return async (_url, _opts) => {
     const responseBody = JSON.stringify({
       choices: [{
@@ -85,7 +85,7 @@ function mockGroqResponse(body: unknown): FetchFn {
   };
 }
 
-function mockGroqError(status: number, message: string): FetchFn {
+function mockLlmError(status: number, message: string): FetchFn {
   return async () => new Response(JSON.stringify({ error: { message } }), { status });
 }
 
@@ -229,7 +229,7 @@ function mockConsistencyResponse() {
 function setup(): MemoryCache {
   const cache = new MemoryCache();
   initCache(cache);
-  initClient({ apiKey: "test-key", model: "llama-3.1-8b-instant", maxApiRetries: 3, maxTokensStructured: 4096, maxTokensStreaming: 8192, baseUrl: "https://api.groq.com/openai/v1" });
+  initClient({ apiKey: "test-key", model: "llama-3.1-8b-instant", maxApiRetries: 3, maxTokensStructured: 4096, maxTokensStreaming: 8192, baseUrl: "https://api.llm.com/openai/v1" });
   return cache;
 }
 
@@ -255,9 +255,9 @@ const SKELETON_LANG: LanguageDefinition = {
 
 console.log("\n── Op 1: suggest_phoneme_inventory ──");
 
-await test("Returns valid PhonologyConfig from Groq response", async () => {
+await test("Returns valid PhonologyConfig from Llm response", async () => {
   const cache = setup();
-  injectMockFetch(mockGroqResponse(mockPhonologyResponse()));
+  injectMockFetch(mockLlmResponse(mockPhonologyResponse()));
 
   const result = await suggestPhonemeInventory({
     languageId: SKELETON_LANG.meta.id,
@@ -274,9 +274,9 @@ await test("Returns valid PhonologyConfig from Groq response", async () => {
   resetFetch();
 });
 
-await test("Cache hit returns immediately without calling Groq", async () => {
+await test("Cache hit returns immediately without calling Llm", async () => {
   const cache = setup();
-  injectMockFetch(mockGroqResponse(mockPhonologyResponse()));
+  injectMockFetch(mockLlmResponse(mockPhonologyResponse()));
 
   const req = { languageId: SKELETON_LANG.meta.id, naturalismScore: 0.7, preset: "naturalistic" as const, tags: ["cache-test"] };
 
@@ -288,7 +288,7 @@ await test("Cache hit returns immediately without calling Groq", async () => {
   let fetchCallCount = 0;
   injectMockFetch(async (...args) => {
     fetchCallCount++;
-    return mockGroqResponse(mockPhonologyResponse())(...args);
+    return mockLlmResponse(mockPhonologyResponse())(...args);
   });
   const second = await suggestPhonemeInventory(req, SKELETON_LANG);
   eq(second.fromCache, true);
@@ -298,7 +298,7 @@ await test("Cache hit returns immediately without calling Groq", async () => {
 
 await test("Attempt number is reported correctly", async () => {
   setup();
-  injectMockFetch(mockGroqResponse(mockPhonologyResponse()));
+  injectMockFetch(mockLlmResponse(mockPhonologyResponse()));
   const result = await suggestPhonemeInventory({ languageId: "test", naturalismScore: 0.5, preset: "naturalistic", tags: [] }, SKELETON_LANG);
   eq(result.attempt, 1, "First attempt should succeed on attempt 1");
   resetFetch();
@@ -310,7 +310,7 @@ console.log("\n── Op 2: fill_paradigm_gaps ──");
 
 await test("Returns valid MorphologyConfig with filled paradigms", async () => {
   setup();
-  injectMockFetch(mockGroqResponse(mockMorphologyResponse()));
+  injectMockFetch(mockLlmResponse(mockMorphologyResponse()));
 
   const result = await fillParadigmGaps({
     languageId: BASE_LANG.meta.id,
@@ -327,7 +327,7 @@ await test("Returns valid MorphologyConfig with filled paradigms", async () => {
 
 await test("Morphology typology is preserved from response", async () => {
   setup();
-  injectMockFetch(mockGroqResponse(mockMorphologyResponse()));
+  injectMockFetch(mockLlmResponse(mockMorphologyResponse()));
   const result = await fillParadigmGaps({
     languageId: "test",
     morphology: BASE_LANG.morphology,
@@ -344,7 +344,7 @@ console.log("\n── Op 3: generate_lexicon ──");
 
 await test("Returns LexicalEntry[] with valid IDs and glosses", async () => {
   setup();
-  injectMockFetch(mockGroqResponse(mockLexiconResponse(1, 5)));
+  injectMockFetch(mockLlmResponse(mockLexiconResponse(1, 5)));
 
   const result = await generateLexicon({
     languageId: BASE_LANG.meta.id,
@@ -370,7 +370,7 @@ await test("Returns LexicalEntry[] with valid IDs and glosses", async () => {
 
 await test("Pronoun subcategory is correctly passed through", async () => {
   setup();
-  injectMockFetch(mockGroqResponse(mockLexiconResponse(1, 5)));
+  injectMockFetch(mockLlmResponse(mockLexiconResponse(1, 5)));
   const result = await generateLexicon({
     languageId: "test",
     phonology: BASE_LANG.phonology,
@@ -392,7 +392,7 @@ console.log("\n── Op 4: generate_corpus ──");
 
 await test("Returns CorpusSample[] with orthographic text and translation", async () => {
   setup();
-  injectMockFetch(mockGroqResponse(mockCorpusResponse(2)));
+  injectMockFetch(mockLlmResponse(mockCorpusResponse(2)));
 
   const result = await generateCorpus({
     languageId: BASE_LANG.meta.id,
@@ -412,7 +412,7 @@ await test("Returns CorpusSample[] with orthographic text and translation", asyn
 
 await test("Corpus validation is structural (not phonotactic)", async () => {
   setup();
-  injectMockFetch(mockGroqResponse(mockCorpusResponse(1)));
+  injectMockFetch(mockLlmResponse(mockCorpusResponse(1)));
   const result = await generateCorpus({
     languageId: "test",
     language: BASE_LANG,
@@ -429,7 +429,7 @@ console.log("\n── Op 5: explain_rule ──");
 
 await test("Returns explanation with examples and cross-linguistic parallels", async () => {
   setup();
-  injectMockFetch(mockGroqResponse(mockExplainResponse()));
+  injectMockFetch(mockLlmResponse(mockExplainResponse()));
 
   const result = await explainRule({
     languageId: BASE_LANG.meta.id,
@@ -447,9 +447,9 @@ await test("Returns explanation with examples and cross-linguistic parallels", a
   resetFetch();
 });
 
-await test("explain_rule is cached with 30-day TTL (verify no second Groq call)", async () => {
+await test("explain_rule is cached with 30-day TTL (verify no second Llm call)", async () => {
   setup();
-  injectMockFetch(mockGroqResponse(mockExplainResponse()));
+  injectMockFetch(mockLlmResponse(mockExplainResponse()));
 
   const req = { languageId: "test-explain", module: "phonology" as const, ruleRef: "allophony_1",
     ruleData: {}, language: BASE_LANG, depth: "beginner" as const };
@@ -457,7 +457,7 @@ await test("explain_rule is cached with 30-day TTL (verify no second Groq call)"
   eq(first.fromCache, false);
 
   let calls = 0;
-  injectMockFetch(async (...args) => { calls++; return mockGroqResponse(mockExplainResponse())(...args); });
+  injectMockFetch(async (...args) => { calls++; return mockLlmResponse(mockExplainResponse())(...args); });
   const second = await explainRule(req);
   eq(second.fromCache, true);
   eq(calls, 0);
@@ -470,7 +470,7 @@ console.log("\n── Op 6: check_consistency ──");
 
 await test("Returns overallScore 0–100 with issues and suggestions", async () => {
   setup();
-  injectMockFetch(mockGroqResponse(mockConsistencyResponse()));
+  injectMockFetch(mockLlmResponse(mockConsistencyResponse()));
 
   const result = await checkConsistency({
     languageId: BASE_LANG.meta.id,
@@ -487,7 +487,7 @@ await test("Returns overallScore 0–100 with issues and suggestions", async () 
 
 await test("Consistency check with focusAreas makes a successful call", async () => {
   setup();
-  injectMockFetch(mockGroqResponse(mockConsistencyResponse()));
+  injectMockFetch(mockLlmResponse(mockConsistencyResponse()));
   const result = await checkConsistency({
     languageId: "test",
     language: BASE_LANG,
@@ -532,7 +532,7 @@ await test("Network error triggers retry inside structuredRequest (2 fetch calls
 
 await test("All MAX_ATTEMPTS exhausted → operation throws LLMOperationError", async () => {
   setup();
-  injectMockFetch(mockGroqResponse({ invalid: "not-a-phonology-response" }));
+  injectMockFetch(mockLlmResponse({ invalid: "not-a-phonology-response" }));
 
   let threw = false;
   try {
@@ -601,7 +601,7 @@ await test("Pipeline chains all 5 steps and returns a LanguageDefinition", async
   let lexBatch = 0;
   injectMockFetch(async (_url, opts) => {
     const reqBody = JSON.parse((opts?.body as string) ?? "{}");
-    // Groq request: messages[0].content = system, messages[1].content = user
+    // Llm request: messages[0].content = system, messages[1].content = user
     const messages: Array<{ role: string; content?: string }> = reqBody.messages ?? [];
     const sysPrompt: string = (messages[0]?.content ?? "") as string;
     const userMsg: string = (messages[1]?.content ?? "") as string;

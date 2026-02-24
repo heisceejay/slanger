@@ -2,7 +2,7 @@
  * @slanger/llm-orchestrator — Public API surface
  */
 export { initClient, getConfig, getUsageSummary, injectMockFetch, resetFetch } from "./client.js";
-export type { GroqClientConfig, TokenUsage } from "./client.js";
+export type { LlmClientConfig, TokenUsage } from "./client.js";
 export { initCache, getCache, MemoryCache, RedisCache } from "./cache.js";
 export type { CacheBackend } from "./cache.js";
 export { withValidationRetry, buildRetryPreamble, MAX_ATTEMPTS } from "./retry.js";

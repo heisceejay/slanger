@@ -4,13 +4,13 @@ import { initClient } from "@slanger/llm-orchestrator";
 import { buildApp } from "./app.js";
 
 async function start() {
-  // 1. Load config — fails fast on missing GROQ_API_KEY
+  // 1. Load config — fails fast on missing GEMINI_API_KEY / LLM_API_KEY
   const config = initConfig();
 
-  // 2. Initialize Groq client (Llama instant, free tier)
+  // 2. Initialize LLM client (defaults to Gemini 2.5 Flash)
   initClient({
-    apiKey: config.groqApiKey,
-    model: config.groqModel,
+    apiKey: config.llmApiKey,
+    model: config.llmModel,
   });
 
   // 3. Start server
@@ -33,7 +33,7 @@ async function start() {
   };
 
   process.on("SIGTERM", () => void shutdown("SIGTERM"));
-  process.on("SIGINT",  () => void shutdown("SIGINT"));
+  process.on("SIGINT", () => void shutdown("SIGINT"));
   process.on("unhandledRejection", (reason) => {
     app.log.error({ reason }, "Unhandled promise rejection");
     void shutdown("unhandledRejection");

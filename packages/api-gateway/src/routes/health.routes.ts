@@ -12,16 +12,16 @@ export async function healthRoutes(fastify: FastifyInstance): Promise<void> {
     });
   });
 
-  /** GET /health/ready — readiness (checks Groq key is configured) */
+  /** GET /health/ready — readiness (checks LLM key is configured) */
   fastify.get("/health/ready", async (_request, reply) => {
     const config = getConfig();
-    if (!config.groqApiKey) {
-      return reply.code(503).send({ status: "error", reason: "GROQ_API_KEY not configured" });
+    if (!config.llmApiKey) {
+      return reply.code(503).send({ status: "error", reason: "GEMINI_API_KEY/LLM_API_KEY not configured" });
     }
     return reply.send({
-      status: "ready",
-      model: config.groqModel,
-      ts: new Date().toISOString(),
+      status: "ok",
+      model: config.llmModel,
+      rateLimit: `${config.rateLimitMax} req / ${config.rateLimitWindowMs / 1000}s`,
     });
   });
 }

@@ -13,9 +13,9 @@ export interface Config {
   readonly port: number;
   readonly host: string;
 
-  // Groq / LLM
-  readonly groqApiKey: string;
-  readonly groqModel: string;
+  // LLM API config
+  readonly llmApiKey: string;
+  readonly llmModel: string;
 
   // Optional persistence (rate limiting uses Redis if available, falls back to memory)
   readonly redisUrl: string;
@@ -33,12 +33,12 @@ export function loadConfig(): Config {
     port: parseInt(optionalEnv("PORT", "3001"), 10),
     host: optionalEnv("HOST", "0.0.0.0"),
 
-    groqApiKey: requireEnv("GROQ_API_KEY"),
-    groqModel:  optionalEnv("GROQ_MODEL", "llama-3.1-8b-instant"),
+    llmApiKey: optionalEnv("GEMINI_API_KEY", optionalEnv("LLM_API_KEY")),
+    llmModel: optionalEnv("GEMINI_MODEL", optionalEnv("LLM_MODEL", "gemini-2.5-flash")),
 
     redisUrl: optionalEnv("REDIS_URL", ""),   // optional — in-memory fallback
 
-    rateLimitMax:      parseInt(optionalEnv("RATE_LIMIT_MAX", "100"), 10),
+    rateLimitMax: parseInt(optionalEnv("RATE_LIMIT_MAX", "100"), 10),
     rateLimitWindowMs: parseInt(optionalEnv("RATE_LIMIT_WINDOW_MS", "60000"), 10),
   };
 }
