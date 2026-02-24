@@ -229,7 +229,7 @@ function mockConsistencyResponse() {
 function setup(): MemoryCache {
   const cache = new MemoryCache();
   initCache(cache);
-  initClient({ apiKey: "test-key", model: "gemini-1.5-flash", maxApiRetries: 3, maxTokensStructured: 4096, maxTokensStreaming: 8192, baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai" });
+  initClient({ apiKey: "test-key", model: "gemini-2.5-flash", maxApiRetries: 3, maxTokensStructured: 4096, maxTokensStreaming: 8192, baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai" });
   return cache;
 }
 

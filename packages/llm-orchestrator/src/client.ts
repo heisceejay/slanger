@@ -30,7 +30,7 @@ export interface LlmClientConfig {
 
 export const DEFAULT_CONFIG: LlmClientConfig = {
   apiKey: process.env["GEMINI_API_KEY"] ?? process.env["LLM_API_KEY"] ?? "",
-  model: (process.env["GEMINI_MODEL"] ?? process.env["LLM_MODEL"] ?? "gemini-1.5-flash").trim(),
+  model: (process.env["GEMINI_MODEL"] ?? process.env["LLM_MODEL"] ?? "gemini-2.5-flash").trim(),
   maxTokensStructured: 4096,
   maxTokensStreaming: 8192,
   maxApiRetries: 5,

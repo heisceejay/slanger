@@ -1,6 +1,6 @@
 # Slanger
 
-AI-assisted constructed language (conlang) generator. Design phoneme inventories, morphological paradigms, vocabulary, and corpus samples — powered by the **Gemini API** (Gemini 1.5 Flash).
+AI-assisted constructed language (conlang) generator. Design phoneme inventories, morphological paradigms, vocabulary, and corpus samples — powered by the **Gemini API** (Gemini 2.5 Flash).
 
 **Architecture:** Stateless API (Node 22 · Fastify · TypeScript) + React SPA (Vite). Language data lives entirely in browser `sessionStorage` and is cleared when the tab closes. No accounts, no database.
 
@@ -66,14 +66,14 @@ Only `GEMINI_API_KEY` is required. All others have defaults.
 | Variable | Required | Default | Description |
 |---|---|---|---|
 | `GEMINI_API_KEY` | ✓ | — | Gemini API key from [aistudio.google.com/apikey](https://aistudio.google.com/apikey) |
-| `GEMINI_MODEL` | — | `gemini-1.5-flash` | Model (e.g. `gemini-2.5-flash` for higher capacity) |
+| `GEMINI_MODEL` | — | `gemini-2.5-flash` | Model (e.g. `gemini-2.5-pro` for higher capacity) |
 | `PORT` | — | `3001` | API server port |
 | `REDIS_URL` | — | _(none)_ | If set, rate limiting uses Redis; otherwise in-memory |
 | `RATE_LIMIT_MAX` | — | `100` | Max requests per time window per IP |
 | `RATE_LIMIT_WINDOW_MS` | — | `60000` | Rate limit window in ms |
 | `NODE_ENV` | — | `development` | Set to `production` for prod |
 
-**Gemini free tier:** Gemini 1.5 Flash is free, fast, and has immense context limits. Get your key at [aistudio.google.com/apikey](https://aistudio.google.com/apikey).
+**Gemini free tier:** Gemini 2.5 Flash is free, fast, and has immense context limits. Get your key at [aistudio.google.com/apikey](https://aistudio.google.com/apikey).
 
 ---
 
@@ -162,7 +162,7 @@ All LLM routes are `POST` and expect a full `LanguageDefinition` in the request 
 - **Streaming** — corpus generation streams SSE tokens to the client in real time
 - **Autonomous pipeline** — chains all 5 ops in dependency order, emitting SSE progress events throughout
 
-**Model:** Default is `gemini-1.5-flash`. Set `GEMINI_MODEL` to override.
+**Model:** Default is `gemini-2.5-flash`. Set `GEMINI_MODEL` to override.
 
 ---
 
