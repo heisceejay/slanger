@@ -30,7 +30,7 @@ export interface LlmClientConfig {
 
 export const DEFAULT_CONFIG: LlmClientConfig = {
   apiKey: process.env["GEMINI_API_KEY"] ?? process.env["LLM_API_KEY"] ?? "",
-  model: process.env["GEMINI_MODEL"] ?? process.env["LLM_MODEL"] ?? "gemini-1.5-flash",
+  model: (process.env["GEMINI_MODEL"] ?? process.env["LLM_MODEL"] ?? "gemini-1.5-flash").trim(),
   maxTokensStructured: 4096,
   maxTokensStreaming: 8192,
   maxApiRetries: 5,
@@ -143,7 +143,6 @@ export async function structuredRequest(opts: StructuredRequestOptions): Promise
       },
     ],
     max_tokens: opts.maxTokens ?? cfg.maxTokensStructured,
-    response_format: { type: "json_object" },
     temperature: 0.7,
   };
 
@@ -348,6 +347,9 @@ export function parseJson<T>(raw: string, context: string): T {
   try {
     return JSON.parse(raw) as T;
   } catch (err) {
+    console.error(`[parseJson Error in ${context}] Raw response string:`);
+    console.error(raw);
+    console.error(`--- End Raw ---`);
     throw new Error(
       `Failed to parse JSON from ${context}.\nParse error: ${err instanceof Error ? err.message : String(err)}\nRaw (first 500): ${raw.slice(0, 500)}`
     );
