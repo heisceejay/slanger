@@ -2,7 +2,7 @@
  * OpenRouter API client — fetch-based, no SDK dependency.
  *
  * Uses the OpenRouter OpenAI-compatible chat completions REST endpoint.
- * Default: meta-llama/llama-3.1-8b-instruct:free (free tier, fast). Handles structured (JSON)
+ * Default: stepfun/step-3.5-flash:free (free tier, fast). Handles structured (JSON)
  * requests, streaming (SSE), retries, and token usage tracking.
  */
 
@@ -32,7 +32,7 @@ export interface OpenRouterClientConfig {
 
 export const DEFAULT_CONFIG: OpenRouterClientConfig = {
   apiKey: process.env["OPENROUTER_API_KEY"] ?? "",
-  model: process.env["OPENROUTER_MODEL"] ?? "meta-llama/llama-3.1-8b-instruct:free",
+  model: process.env["OPENROUTER_MODEL"] ?? "stepfun/step-3.5-flash:free",
   maxTokensStructured: 4096,
   maxTokensStreaming: 8192,
   maxApiRetries: 5,
