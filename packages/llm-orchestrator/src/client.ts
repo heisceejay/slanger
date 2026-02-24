@@ -91,7 +91,6 @@ interface OpenRouterRequest {
   model: string;
   messages: OpenRouterMessage[];
   max_tokens?: number;
-  response_format?: { type: "json_object" };
   stream?: boolean;
   temperature?: number;
 }
@@ -147,7 +146,6 @@ export async function structuredRequest(opts: StructuredRequestOptions): Promise
       },
     ],
     max_tokens: opts.maxTokens ?? cfg.maxTokensStructured,
-    response_format: { type: "json_object" },
     temperature: 0.7,
   };
 
