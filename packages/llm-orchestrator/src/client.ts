@@ -32,10 +32,10 @@ export interface OpenRouterClientConfig {
 
 export const DEFAULT_CONFIG: OpenRouterClientConfig = {
   apiKey: process.env["OPENROUTER_API_KEY"] ?? "",
-  model: process.env["OPENROUTER_MODEL"] ?? "google/gemini-2.0-flash-exp:free",
+  model: process.env["OPENROUTER_MODEL"] ?? "mistralai/mistral-7b-instruct:free",
   maxTokensStructured: 4096,
   maxTokensStreaming: 8192,
-  maxApiRetries: 5,
+  maxApiRetries: 3,
   baseUrl: "https://openrouter.ai/api/v1",
   siteUrl: "https://slanger.app",
   siteName: "Slanger",
@@ -188,10 +188,13 @@ export async function structuredRequest(opts: StructuredRequestOptions): Promise
         }
 
         if ((response.status === 429 || response.status >= 500) && attempt < cfg.maxApiRetries) {
-          // Respect the Retry-After header (in seconds), fallback to exponential backoff
+          // Respect the Retry-After header (in seconds), fallback to rate-limit-aware backoff
+          // Free-tier models often enforce 1 RPM — wait at least 30s before retrying
           const retryAfterMs = retryAfterHeader
-            ? parseFloat(retryAfterHeader) * 1000 + 1000 // add 1s buffer
-            : exponentialBackoff(attempt);
+            ? parseFloat(retryAfterHeader) * 1000 + 2000
+            : response.status === 429
+              ? Math.max(exponentialBackoff(attempt), 30_000) // min 30s for rate limits
+              : exponentialBackoff(attempt);
           await sleep(retryAfterMs);
           continue;
         }
@@ -388,5 +391,5 @@ function sleep(ms: number): Promise<void> {
 }
 
 function exponentialBackoff(attempt: number): number {
-  return Math.min(1000 * 2 ** (attempt - 1), 10_000) + Math.random() * 500;
+  return Math.min(1000 * 2 ** (attempt - 1), 15_000) + Math.random() * 500;
 }
