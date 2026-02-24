@@ -32,7 +32,7 @@ export interface OpenRouterClientConfig {
 
 export const DEFAULT_CONFIG: OpenRouterClientConfig = {
   apiKey: process.env["OPENROUTER_API_KEY"] ?? "",
-  model: process.env["OPENROUTER_MODEL"] ?? "stepfun/step-3.5-flash:free",
+  model: process.env["OPENROUTER_MODEL"] ?? "google/gemini-2.0-flash-exp:free",
   maxTokensStructured: 4096,
   maxTokensStreaming: 8192,
   maxApiRetries: 5,
@@ -344,10 +344,33 @@ export async function streamingRequest(opts: StreamingRequestOptions): Promise<s
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 export function cleanJson(raw: string): string {
-  return raw
+  // Strip markdown code fences (handles ```json ... ``` and ``` ... ```)
+  let cleaned = raw
     .replace(/^```(?:json)?\s*/i, "")
     .replace(/\s*```\s*$/i, "")
     .trim();
+
+  // If still not starting with { or [, try to extract the first JSON object/array
+  // This handles models that add preamble text before the JSON
+  if (!cleaned.startsWith("{") && !cleaned.startsWith("[")) {
+    const objIdx = cleaned.indexOf("{");
+    const arrIdx = cleaned.indexOf("[");
+    const startIdx =
+      objIdx === -1 ? arrIdx
+        : arrIdx === -1 ? objIdx
+          : Math.min(objIdx, arrIdx);
+    if (startIdx !== -1) {
+      cleaned = cleaned.slice(startIdx);
+    }
+  }
+
+  // Trim trailing non-JSON text after the last closing brace/bracket
+  const lastBrace = Math.max(cleaned.lastIndexOf("}"), cleaned.lastIndexOf("]"));
+  if (lastBrace !== -1) {
+    cleaned = cleaned.slice(0, lastBrace + 1);
+  }
+
+  return cleaned;
 }
 
 export function parseJson<T>(raw: string, context: string): T {
