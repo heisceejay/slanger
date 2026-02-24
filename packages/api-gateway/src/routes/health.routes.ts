@@ -12,16 +12,16 @@ export async function healthRoutes(fastify: FastifyInstance): Promise<void> {
     });
   });
 
-  /** GET /health/ready — readiness (checks LLM key is configured) */
+  /** GET /health/ready — readiness (checks OpenRouter key is configured) */
   fastify.get("/health/ready", async (_request, reply) => {
     const config = getConfig();
-    if (!config.llmApiKey) {
-      return reply.code(503).send({ status: "error", reason: "GEMINI_API_KEY/LLM_API_KEY not configured" });
+    if (!config.openRouterApiKey) {
+      return reply.code(503).send({ status: "error", reason: "OPENROUTER_API_KEY not configured" });
     }
     return reply.send({
-      status: "ok",
-      model: config.llmModel,
-      rateLimit: `${config.rateLimitMax} req / ${config.rateLimitWindowMs / 1000}s`,
+      status: "ready",
+      model: config.openRouterModel,
+      ts: new Date().toISOString(),
     });
   });
 }

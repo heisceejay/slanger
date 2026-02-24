@@ -13,9 +13,9 @@ export interface Config {
   readonly port: number;
   readonly host: string;
 
-  // LLM API config
-  readonly llmApiKey: string;
-  readonly llmModel: string;
+  // OpenRouter / LLM
+  readonly openRouterApiKey: string;
+  readonly openRouterModel: string;
 
   // Optional persistence (rate limiting uses Redis if available, falls back to memory)
   readonly redisUrl: string;
@@ -33,8 +33,8 @@ export function loadConfig(): Config {
     port: parseInt(optionalEnv("PORT", "3001"), 10),
     host: optionalEnv("HOST", "0.0.0.0"),
 
-    llmApiKey: optionalEnv("GEMINI_API_KEY", optionalEnv("LLM_API_KEY")),
-    llmModel: optionalEnv("GEMINI_MODEL", optionalEnv("LLM_MODEL", "gemini-2.5-flash")),
+    openRouterApiKey: requireEnv("OPENROUTER_API_KEY"),
+    openRouterModel: optionalEnv("OPENROUTER_MODEL", "meta-llama/llama-3.1-8b-instruct:free"),
 
     redisUrl: optionalEnv("REDIS_URL", ""),   // optional — in-memory fallback
 

@@ -1,7 +1,9 @@
-/**
+const fs = require('fs');
+
+const NEW_CONTENT = `/**
  * Phase 3 Integration Tests — LLM Orchestrator
  *
- * Uses mock fetch — zero network calls.
+ * Uses mock genai client — zero network calls.
  * Tests:
  *   - All 6 operations parse, validate, cache, and retry correctly
  *   - The autonomous pipeline chains operations in order
@@ -14,8 +16,8 @@ import {
   initClient,
   initCache,
   MemoryCache,
-  injectMockFetch,
-  resetFetch,
+  injectMockClient,
+  resetClient,
   suggestPhonemeInventory,
   fillParadigmGaps,
   generateLexicon,
@@ -29,7 +31,6 @@ import {
 import { FIXTURE_KETHANI } from "@slanger/shared-types";
 import type { PhonologyConfig, MorphologyConfig } from "@slanger/shared-types";
 import type { LanguageDefinition } from "@slanger/shared-types";
-import type { FetchFn } from "../client.js";
 
 // ─── Mini test runner ─────────────────────────────────────────────────────────
 
@@ -41,7 +42,7 @@ async function test(name: string, fn: () => Promise<void> | void): Promise<void>
   try {
     await fn();
     passed++;
-    console.log(`  ✓ ${name}`);
+    console.log(\`  ✓ \${name}\`);
   } catch (e: unknown) {
     failed++;
     let msg: string;
@@ -49,44 +50,47 @@ async function test(name: string, fn: () => Promise<void> | void): Promise<void>
       msg = e.message;
     } else if (e && typeof e === "object" && "finalError" in e) {
       const llmErr = e as { operation?: string; finalError?: string };
-      msg = `LLMOperationError(${llmErr.operation ?? "?"}): ${String(llmErr.finalError ?? "").slice(0, 250)}`;
+      msg = \`LLMOperationError(\${llmErr.operation ?? "?"}): \${String(llmErr.finalError ?? "").slice(0, 250)}\`;
     } else {
       msg = JSON.stringify(e) ?? String(e);
     }
     const short = msg.slice(0, 300);
-    console.error(`  ✗ ${name}\n    ${short}`);
-    failures.push(`${name}: ${short}`);
+    console.error(\`  ✗ \${name}\\n    \${short}\`);
+    failures.push(\`\${name}: \${short}\`);
   }
 }
 
 function eq<T>(a: T, b: T, msg?: string): void {
-  if (a !== b) throw new Error(msg ?? `Expected ${JSON.stringify(b)}, got ${JSON.stringify(a)}`);
+  if (a !== b) throw new Error(msg ?? \`Expected \${JSON.stringify(b)}, got \${JSON.stringify(a)}\`);
 }
 
 function ok(val: unknown, msg?: string): void {
-  if (!val) throw new Error(msg ?? `Expected truthy, got ${JSON.stringify(val)}`);
+  if (!val) throw new Error(msg ?? \`Expected truthy, got \${JSON.stringify(val)}\`);
 }
 
-// ─── Mock fetch helpers (Llm OpenAI-compatible format) ───────────────────────
+// ─── Mock genai helpers ──────────────────────────────────────────────────────
 
-function mockLlmResponse(body: unknown): FetchFn {
-  return async (_url, _opts) => {
-    const responseBody = JSON.stringify({
-      choices: [{
-        message: { content: JSON.stringify(body), role: "assistant" },
-        finish_reason: "stop",
-      }],
-      usage: { prompt_tokens: 100, completion_tokens: 200, total_tokens: 300 },
-    });
-    return new Response(responseBody, {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    });
-  };
+function createMockClient(mockGenerateFn: (opts: any) => Promise<any>) {
+    return {
+        models: {
+            generateContent: mockGenerateFn
+        }
+    };
 }
 
-function mockLlmError(status: number, message: string): FetchFn {
-  return async () => new Response(JSON.stringify({ error: { message } }), { status });
+function mockLlmResponse(body: unknown) {
+  return createMockClient(async () => {
+      return {
+          text: JSON.stringify(body),
+          usageMetadata: { promptTokenCount: 100, candidatesTokenCount: 200, totalTokenCount: 300 }
+      }
+  });
+}
+
+function mockLlmError(status: number, message: string) {
+  return createMockClient(async () => {
+      throw { status, message };
+  });
 }
 
 /** Build a minimal but valid PhonologyConfig response */
@@ -159,16 +163,16 @@ function mockLexiconResponse(startId = 1, count = 5) {
     const idx = startId + i;
     // Use CVC for odd indices, single CV for even — stays within CV/CVC/V/VC templates
     const orth = (idx % 2 === 0)
-      ? cvSyllables[idx % cvSyllables.length]! + cvSyllables[(idx + 7) % cvSyllables.length]!  // CVCV
-      : cvcSyllables[idx % cvcSyllables.length]!;  // CVC
-    const [pos, sub, field] = poss[idx % poss.length]!;
-    const gloss = glosses[idx % glosses.length]!;
+      ? cvSyllables[idx % cvSyllables.length] + cvSyllables[(idx + 7) % cvSyllables.length]  // CVCV
+      : cvcSyllables[idx % cvcSyllables.length];  // CVC
+    const [pos, sub, field] = poss[idx % poss.length];
+    const gloss = glosses[idx % glosses.length];
     entries.push({
-      id: `lex_${String(startId + i).padStart(4, "0")}`,
-      phonologicalForm: `/${orth}/`,
+      id: \`lex_\${String(startId + i).padStart(4, "0")}\`,
+      phonologicalForm: \`/\${orth}/\`,
       orthographicForm: orth,
       pos, subcategory: sub,
-      glosses: [`${gloss}${idx}`], // unique per entry
+      glosses: [\`\${gloss}\${idx}\`], // unique per entry
       semanticFields: [field],
       derivedForms: [],
       source: "generated",
@@ -181,7 +185,7 @@ function mockLexiconResponse(startId = 1, count = 5) {
 function mockCorpusResponse(count = 2) {
   return {
     samples: Array.from({ length: count }, (_, i) => ({
-      id: `corp_${String(i + 1).padStart(4, "0")}`,
+      id: \`corp_\${String(i + 1).padStart(4, "0")}\`,
       register: i % 2 === 0 ? "informal" : "formal",
       orthographicText: "etu tana kelu.",
       ipaText: "/etu tana kelu/",
@@ -229,7 +233,7 @@ function mockConsistencyResponse() {
 function setup(): MemoryCache {
   const cache = new MemoryCache();
   initCache(cache);
-  initClient({ apiKey: "test-key", model: "llama-3.1-8b-instant", maxApiRetries: 3, maxTokensStructured: 4096, maxTokensStreaming: 8192, baseUrl: "https://api.llm.com/openai/v1" });
+  initClient({ apiKey: "test-key", model: "gemini-2.5-flash", maxApiRetries: 3, maxTokensStructured: 4096, maxTokensStreaming: 8192 });
   return cache;
 }
 
@@ -253,11 +257,11 @@ const SKELETON_LANG: LanguageDefinition = {
 
 // ─── Op 1: suggest_phoneme_inventory ─────────────────────────────────────────
 
-console.log("\n── Op 1: suggest_phoneme_inventory ──");
+console.log("\\n── Op 1: suggest_phoneme_inventory ──");
 
 await test("Returns valid PhonologyConfig from Llm response", async () => {
   const cache = setup();
-  injectMockFetch(mockLlmResponse(mockPhonologyResponse()));
+  injectMockClient(mockLlmResponse(mockPhonologyResponse()));
 
   const result = await suggestPhonemeInventory({
     languageId: SKELETON_LANG.meta.id,
@@ -270,13 +274,13 @@ await test("Returns valid PhonologyConfig from Llm response", async () => {
   eq(result.fromCache, false);
   ok(result.data.phonology.inventory.consonants.length > 0);
   ok(result.data.phonology.inventory.vowels.length > 0);
-  ok(result.validation.valid, `Validation failed: ${result.validation.errors.map(e => e.message).join("; ")}`);
-  resetFetch();
+  ok(result.validation.valid, \`Validation failed: \${result.validation.errors.map(e => e.message).join("; ")}\`);
+  resetClient();
 });
 
 await test("Cache hit returns immediately without calling Llm", async () => {
   const cache = setup();
-  injectMockFetch(mockLlmResponse(mockPhonologyResponse()));
+  injectMockClient(mockLlmResponse(mockPhonologyResponse()));
 
   const req = { languageId: SKELETON_LANG.meta.id, naturalismScore: 0.7, preset: "naturalistic" as const, tags: ["cache-test"] };
 
@@ -286,31 +290,31 @@ await test("Cache hit returns immediately without calling Llm", async () => {
 
   // Second call — same request key — should be cached
   let fetchCallCount = 0;
-  injectMockFetch(async (...args) => {
+  injectMockClient(createMockClient(async () => {
     fetchCallCount++;
-    return mockLlmResponse(mockPhonologyResponse())(...args);
-  });
+    return { text: JSON.stringify(mockPhonologyResponse()) };
+  }));
   const second = await suggestPhonemeInventory(req, SKELETON_LANG);
   eq(second.fromCache, true);
   eq(fetchCallCount, 0, "Expected zero fetch calls on cache hit");
-  resetFetch();
+  resetClient();
 });
 
 await test("Attempt number is reported correctly", async () => {
   setup();
-  injectMockFetch(mockLlmResponse(mockPhonologyResponse()));
+  injectMockClient(mockLlmResponse(mockPhonologyResponse()));
   const result = await suggestPhonemeInventory({ languageId: "test", naturalismScore: 0.5, preset: "naturalistic", tags: [] }, SKELETON_LANG);
   eq(result.attempt, 1, "First attempt should succeed on attempt 1");
-  resetFetch();
+  resetClient();
 });
 
 // ─── Op 2: fill_paradigm_gaps ─────────────────────────────────────────────────
 
-console.log("\n── Op 2: fill_paradigm_gaps ──");
+console.log("\\n── Op 2: fill_paradigm_gaps ──");
 
 await test("Returns valid MorphologyConfig with filled paradigms", async () => {
   setup();
-  injectMockFetch(mockLlmResponse(mockMorphologyResponse()));
+  injectMockClient(mockLlmResponse(mockMorphologyResponse()));
 
   const result = await fillParadigmGaps({
     languageId: BASE_LANG.meta.id,
@@ -322,12 +326,12 @@ await test("Returns valid MorphologyConfig with filled paradigms", async () => {
   eq(result.operation, "fill_paradigm_gaps");
   ok(Object.keys(result.data.morphology.paradigms).length > 0);
   ok(result.data.morphology.morphemeOrder.includes("root"));
-  resetFetch();
+  resetClient();
 });
 
 await test("Morphology typology is preserved from response", async () => {
   setup();
-  injectMockFetch(mockLlmResponse(mockMorphologyResponse()));
+  injectMockClient(mockLlmResponse(mockMorphologyResponse()));
   const result = await fillParadigmGaps({
     languageId: "test",
     morphology: BASE_LANG.morphology,
@@ -335,16 +339,16 @@ await test("Morphology typology is preserved from response", async () => {
     targetParadigms: ["verb_tense"],
   }, BASE_LANG);
   eq(result.data.morphology.typology, "agglutinative");
-  resetFetch();
+  resetClient();
 });
 
 // ─── Op 3: generate_lexicon ───────────────────────────────────────────────────
 
-console.log("\n── Op 3: generate_lexicon ──");
+console.log("\\n── Op 3: generate_lexicon ──");
 
 await test("Returns LexicalEntry[] with valid IDs and glosses", async () => {
   setup();
-  injectMockFetch(mockLlmResponse(mockLexiconResponse(1, 5)));
+  injectMockClient(mockLlmResponse(mockLexiconResponse(1, 5)));
 
   const result = await generateLexicon({
     languageId: BASE_LANG.meta.id,
@@ -360,17 +364,17 @@ await test("Returns LexicalEntry[] with valid IDs and glosses", async () => {
   eq(result.operation, "generate_lexicon");
   ok(result.data.entries.length > 0);
   for (const entry of result.data.entries) {
-    ok(entry.id.match(/^lex_\d+/), `Bad ID: ${entry.id}`);
-    ok(entry.glosses.length > 0, `Entry ${entry.id} has no glosses`);
-    ok(entry.phonologicalForm, `Entry ${entry.id} missing phonologicalForm`);
-    ok(entry.orthographicForm, `Entry ${entry.id} missing orthographicForm`);
+    ok(entry.id.match(/^lex_\\d+/), \`Bad ID: \${entry.id}\`);
+    ok(entry.glosses.length > 0, \`Entry \${entry.id} has no glosses\`);
+    ok(entry.phonologicalForm, \`Entry \${entry.id} missing phonologicalForm\`);
+    ok(entry.orthographicForm, \`Entry \${entry.id} missing orthographicForm\`);
   }
-  resetFetch();
+  resetClient();
 });
 
 await test("Pronoun subcategory is correctly passed through", async () => {
   setup();
-  injectMockFetch(mockLlmResponse(mockLexiconResponse(1, 5)));
+  injectMockClient(mockLlmResponse(mockLexiconResponse(1, 5)));
   const result = await generateLexicon({
     languageId: "test",
     phonology: BASE_LANG.phonology,
@@ -383,16 +387,16 @@ await test("Pronoun subcategory is correctly passed through", async () => {
   }, BASE_LANG);
   const pronoun = result.data.entries.find(e => e.subcategory === "personal-pronoun");
   ok(pronoun, "Expected at least one personal pronoun in batch");
-  resetFetch();
+  resetClient();
 });
 
 // ─── Op 4: generate_corpus ────────────────────────────────────────────────────
 
-console.log("\n── Op 4: generate_corpus ──");
+console.log("\\n── Op 4: generate_corpus ──");
 
 await test("Returns CorpusSample[] with orthographic text and translation", async () => {
   setup();
-  injectMockFetch(mockLlmResponse(mockCorpusResponse(2)));
+  injectMockClient(mockLlmResponse(mockCorpusResponse(2)));
 
   const result = await generateCorpus({
     languageId: BASE_LANG.meta.id,
@@ -404,15 +408,15 @@ await test("Returns CorpusSample[] with orthographic text and translation", asyn
   eq(result.operation, "generate_corpus");
   eq(result.data.samples.length, 2);
   for (const sample of result.data.samples) {
-    ok(sample.orthographicText, `Sample ${sample.id} missing orthographicText`);
-    ok(sample.translation, `Sample ${sample.id} missing translation`);
+    ok(sample.orthographicText, \`Sample \${sample.id} missing orthographicText\`);
+    ok(sample.translation, \`Sample \${sample.id} missing translation\`);
   }
-  resetFetch();
+  resetClient();
 });
 
 await test("Corpus validation is structural (not phonotactic)", async () => {
   setup();
-  injectMockFetch(mockLlmResponse(mockCorpusResponse(1)));
+  injectMockClient(mockLlmResponse(mockCorpusResponse(1)));
   const result = await generateCorpus({
     languageId: "test",
     language: BASE_LANG,
@@ -420,16 +424,16 @@ await test("Corpus validation is structural (not phonotactic)", async () => {
     registers: ["narrative"],
   }, BASE_LANG);
   eq(result.validation.valid, true);
-  resetFetch();
+  resetClient();
 });
 
 // ─── Op 5: explain_rule ───────────────────────────────────────────────────────
 
-console.log("\n── Op 5: explain_rule ──");
+console.log("\\n── Op 5: explain_rule ──");
 
 await test("Returns explanation with examples and cross-linguistic parallels", async () => {
   setup();
-  injectMockFetch(mockLlmResponse(mockExplainResponse()));
+  injectMockClient(mockLlmResponse(mockExplainResponse()));
 
   const result = await explainRule({
     languageId: BASE_LANG.meta.id,
@@ -444,12 +448,12 @@ await test("Returns explanation with examples and cross-linguistic parallels", a
   ok(result.data.explanation.length > 0);
   ok(Array.isArray(result.data.examples));
   ok(Array.isArray(result.data.crossLinguisticParallels));
-  resetFetch();
+  resetClient();
 });
 
 await test("explain_rule is cached with 30-day TTL (verify no second Llm call)", async () => {
   setup();
-  injectMockFetch(mockLlmResponse(mockExplainResponse()));
+  injectMockClient(mockLlmResponse(mockExplainResponse()));
 
   const req = {
     languageId: "test-explain", module: "phonology" as const, ruleRef: "allophony_1",
@@ -459,20 +463,20 @@ await test("explain_rule is cached with 30-day TTL (verify no second Llm call)",
   eq(first.fromCache, false);
 
   let calls = 0;
-  injectMockFetch(async (...args) => { calls++; return mockLlmResponse(mockExplainResponse())(...args); });
+  injectMockClient(createMockClient(async () => { calls++; return { text: JSON.stringify(mockExplainResponse()) }; }));
   const second = await explainRule(req);
   eq(second.fromCache, true);
   eq(calls, 0);
-  resetFetch();
+  resetClient();
 });
 
 // ─── Op 6: check_consistency ─────────────────────────────────────────────────
 
-console.log("\n── Op 6: check_consistency ──");
+console.log("\\n── Op 6: check_consistency ──");
 
 await test("Returns overallScore 0–100 with issues and suggestions", async () => {
   setup();
-  injectMockFetch(mockLlmResponse(mockConsistencyResponse()));
+  injectMockClient(mockLlmResponse(mockConsistencyResponse()));
 
   const result = await checkConsistency({
     languageId: BASE_LANG.meta.id,
@@ -484,39 +488,38 @@ await test("Returns overallScore 0–100 with issues and suggestions", async () 
   ok(Array.isArray(result.data.linguisticIssues));
   ok(Array.isArray(result.data.suggestions));
   ok(Array.isArray(result.data.strengths));
-  resetFetch();
+  resetClient();
 });
 
 await test("Consistency check with focusAreas makes a successful call", async () => {
   setup();
-  injectMockFetch(mockLlmResponse(mockConsistencyResponse()));
+  injectMockClient(mockLlmResponse(mockConsistencyResponse()));
   const result = await checkConsistency({
     languageId: "test",
     language: BASE_LANG,
     focusAreas: ["phonology-morphology", "morphology-syntax"],
   });
   ok(result.data.overallScore >= 0);
-  resetFetch();
+  resetClient();
 });
 
 // ─── Retry logic ──────────────────────────────────────────────────────────────
 
-console.log("\n── Retry & validation gate ──");
+console.log("\\n── Retry & validation gate ──");
 
-await test("Network error triggers retry inside structuredRequest (2 fetch calls total)", async () => {
+await test("Network error triggers retry inside structuredRequest", async () => {
   setup();
   let callCount = 0;
-  injectMockFetch(async (_url, _opts) => {
+  injectMockClient(createMockClient(async () => {
     callCount++;
     if (callCount === 1) {
-      // Return 429 rate limit — triggers backoff retry inside structuredRequest
-      return new Response(JSON.stringify({ error: "rate limited" }), { status: 429, headers: { "Content-Type": "application/json" } });
+      throw { status: 429, message: "rate limited" };
     }
-    return new Response(JSON.stringify({
-      choices: [{ message: { content: JSON.stringify(mockPhonologyResponse()), role: "assistant" }, finish_reason: "stop" }],
-      usage: { prompt_tokens: 50, completion_tokens: 100, total_tokens: 150 },
-    }), { status: 200, headers: { "Content-Type": "application/json" } });
-  });
+    return {
+      text: JSON.stringify(mockPhonologyResponse()),
+      usageMetadata: { promptTokenCount: 50, candidatesTokenCount: 100, totalTokenCount: 150 },
+    };
+  }));
 
   const result = await suggestPhonemeInventory({
     languageId: "retry-test",
@@ -526,15 +529,15 @@ await test("Network error triggers retry inside structuredRequest (2 fetch calls
   }, SKELETON_LANG);
 
   // 2 fetch calls: 1 rate-limit + 1 good (both within same structuredRequest call)
-  eq(callCount, 2, `Expected 2 fetch calls (1 rate-limit + 1 retry), got ${callCount}`);
+  eq(callCount, 2, \`Expected 2 genai calls (1 rate-limit + 1 retry), got \${callCount}\`);
   eq(result.attempt, 1); // operation sees it as attempt 1 (structuredRequest handled retry)
   ok(result.validation.valid);
-  resetFetch();
+  resetClient();
 });
 
 await test("All MAX_ATTEMPTS exhausted → operation throws LLMOperationError", async () => {
   setup();
-  injectMockFetch(mockLlmResponse({ invalid: "not-a-phonology-response" }));
+  injectMockClient(mockLlmResponse({ invalid: "not-a-phonology-response" }));
 
   let threw = false;
   try {
@@ -550,14 +553,14 @@ await test("All MAX_ATTEMPTS exhausted → operation throws LLMOperationError", 
     ok(e.retryReasons, "Expected LLMOperationError with retryReasons");
   }
   ok(threw, "Expected error to be thrown");
-  resetFetch();
+  resetClient();
 });
 
 await test("Validation-failing response is rejected and retried", async () => {
   setup();
   let calls = 0;
 
-  injectMockFetch(async (_url, _opts) => {
+  injectMockClient(createMockClient(async () => {
     calls++;
     let body: unknown;
     if (calls < MAX_ATTEMPTS) {
@@ -574,11 +577,11 @@ await test("Validation-failing response is rejected and retried", async () => {
     } else {
       body = mockPhonologyResponse(); // valid on final attempt
     }
-    return new Response(JSON.stringify({
-      choices: [{ message: { content: JSON.stringify(body), role: "assistant" }, finish_reason: "stop" }],
-      usage: { prompt_tokens: 50, completion_tokens: 100, total_tokens: 150 },
-    }), { status: 200, headers: { "Content-Type": "application/json" } });
-  });
+    return {
+      text: JSON.stringify(body),
+      usageMetadata: { promptTokenCount: 50, candidatesTokenCount: 100, totalTokenCount: 150 },
+    };
+  }));
 
   const result = await suggestPhonemeInventory({
     languageId: "validation-fail-test",
@@ -587,51 +590,41 @@ await test("Validation-failing response is rejected and retried", async () => {
     tags: [],
   }, SKELETON_LANG);
 
-  eq(result.attempt, MAX_ATTEMPTS, `Expected to succeed on attempt ${MAX_ATTEMPTS}`);
+  eq(result.attempt, MAX_ATTEMPTS, \`Expected to succeed on attempt \${MAX_ATTEMPTS}\`);
   ok(result.validation.valid);
-  resetFetch();
+  resetClient();
 });
 
 // ─── Autonomous pipeline ──────────────────────────────────────────────────────
 
-console.log("\n── Autonomous pipeline ──");
+console.log("\\n── Autonomous pipeline ──");
 
 await test("Pipeline chains all 5 steps and returns a LanguageDefinition", async () => {
   setup();
 
-  // Smart mock: identifies operation from the system prompt (more reliable than user msg which may have retry preamble)
   let lexBatch = 0;
-  injectMockFetch(async (_url, opts) => {
-    const reqBody = JSON.parse((opts?.body as string) ?? "{}");
-    // Llm request: messages[0].content = system, messages[1].content = user
-    const messages: Array<{ role: string; content?: string }> = reqBody.messages ?? [];
-    const sysPrompt: string = (messages[0]?.content ?? "") as string;
-    const userMsg: string = (messages[1]?.content ?? "") as string;
-
+  injectMockClient(createMockClient(async (opts: any) => {
+    const sysPrompt = opts.config.systemInstruction;
+    
     let body: unknown;
     if (sysPrompt.includes("typologist") || sysPrompt.includes("phonological systems")) {
-      // Op 1: suggest_phoneme_inventory
       body = mockPhonologyResponse();
     } else if (sysPrompt.includes("interlinear glossing") || sysPrompt.includes("corpus samples")) {
-      // Op 4: generate_corpus (check BEFORE morphology — corpus prompt contains 'paradigm tables')
       body = mockCorpusResponse(3);
     } else if (sysPrompt.includes("morphologist") || sysPrompt.includes("morphological paradigm")) {
-      // Op 2: fill_paradigm_gaps
       body = mockMorphologyResponse();
     } else if (sysPrompt.includes("consistency") || sysPrompt.includes("coherence") || sysPrompt.includes("consultant")) {
-      // Op 6: check_consistency
       body = mockConsistencyResponse();
     } else {
-      // Op 3: generate_lexicon (default — also covers explain_rule in pipeline context)
       body = mockLexiconResponse(lexBatch * 40 + 1, 40);
       lexBatch++;
     }
 
-    return new Response(JSON.stringify({
-      choices: [{ message: { content: JSON.stringify(body), role: "assistant" }, finish_reason: "stop" }],
-      usage: { prompt_tokens: 100, completion_tokens: 200, total_tokens: 300 },
-    }), { status: 200, headers: { "Content-Type": "application/json" } });
-  });
+    return {
+      text: JSON.stringify(body),
+      usageMetadata: { promptTokenCount: 100, candidatesTokenCount: 200, totalTokenCount: 300 },
+    };
+  }));
 
   const events: string[] = [];
   const result = await runAutonomousPipeline({
@@ -657,27 +650,27 @@ await test("Pipeline chains all 5 steps and returns a LanguageDefinition", async
   ok(events.includes("pipeline_complete"), "Expected pipeline_complete event");
   ok(result.totalDurationMs >= 0);
 
-  resetFetch();
+  resetClient();
 });
 
 await test("Pipeline emits pipeline_progress for each step", async () => {
   setup();
   let lexBatch2 = 0;
-  injectMockFetch(async (_url, opts) => {
-    const reqBody = JSON.parse((opts?.body as string) ?? "{}");
-    const messages: Array<{ role: string; content?: string }> = reqBody.messages ?? [];
-    const sysPrompt: string = (messages[0]?.content ?? "") as string;
+  
+  injectMockClient(createMockClient(async (opts: any) => {
+    const sysPrompt = opts.config.systemInstruction;
     let body: unknown;
-    if (sysPrompt.includes("typologist") || sysPrompt.includes("phonological systems")) body = mockPhonologyResponse();
-    else if (sysPrompt.includes("interlinear glossing") || sysPrompt.includes("corpus samples")) body = mockCorpusResponse(2);
-    else if (sysPrompt.includes("morphologist") || sysPrompt.includes("morphological paradigm")) body = mockMorphologyResponse();
-    else if (sysPrompt.includes("consistency") || sysPrompt.includes("coherence") || sysPrompt.includes("consultant")) body = mockConsistencyResponse();
+    if (sysPrompt.includes("typologist")) body = mockPhonologyResponse();
+    else if (sysPrompt.includes("interlinear glossing")) body = mockCorpusResponse(2);
+    else if (sysPrompt.includes("morphologist")) body = mockMorphologyResponse();
+    else if (sysPrompt.includes("consistency")) body = mockConsistencyResponse();
     else { body = mockLexiconResponse(lexBatch2 * 40 + 1, 40); lexBatch2++; }
-    return new Response(JSON.stringify({
-      choices: [{ message: { content: JSON.stringify(body), role: "assistant" }, finish_reason: "stop" }],
-      usage: { prompt_tokens: 50, completion_tokens: 100, total_tokens: 150 },
-    }), { status: 200, headers: { "Content-Type": "application/json" } });
-  });
+    
+    return {
+      text: JSON.stringify(body),
+      usageMetadata: { promptTokenCount: 50, candidatesTokenCount: 100, totalTokenCount: 150 },
+    };
+  }));
 
   const progressEvents: number[] = [];
   await runAutonomousPipeline({
@@ -688,15 +681,15 @@ await test("Pipeline emits pipeline_progress for each step", async () => {
   });
 
   // Should have 5 steps worth of progress events
-  ok(progressEvents.length >= 5, `Expected ≥5 progress events, got ${progressEvents.length}`);
+  ok(progressEvents.length >= 5, \`Expected ≥5 progress events, got \${progressEvents.length}\`);
   ok(progressEvents.includes(1), "Missing step 1");
   ok(progressEvents.includes(4), "Missing step 4 (corpus)");
-  resetFetch();
+  resetClient();
 });
 
 // ─── Token usage tracking ─────────────────────────────────────────────────────
 
-console.log("\n── Token usage tracking ──");
+console.log("\\n── Token usage tracking ──");
 
 await test("getUsageSummary reports accumulated token counts", async () => {
   // Use a fresh unique languageId to avoid cache hits
@@ -713,10 +706,12 @@ await test("getUsageSummary reports accumulated token counts", async () => {
 
 // ─── Results ──────────────────────────────────────────────────────────────────
 
-console.log(`\n${"═".repeat(55)}`);
-console.log(`Phase 3 Tests: ${passed} passed, ${failed} failed`);
+console.log(\`\\n\${\"═\".repeat(55)}\`);
+console.log(\`Phase 3 Tests: \${passed} passed, \${failed} failed\`);
 if (failures.length > 0) {
-  console.error("\nFailed:");
-  failures.forEach(f => console.error(`  ✗ ${f}`));
+  console.error("\\nFailed:");
+  failures.forEach(f => console.error(\`  ✗ \${f}\`));
   throw new Error("Tests failed");
 }
+\`
+fs.writeFileSync('packages/llm-orchestrator/src/tests/phase3.test.ts', NEW_CONTENT);

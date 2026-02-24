@@ -1,5 +1,5 @@
 /**
- * Slanger LLM Routes — stateless proxy to OpenAI-compatible LLM APIs (Gemini)
+ * Slanger LLM Routes — stateless proxy to Groq (Llama)
  *
  * Every route receives the full LanguageDefinition in the request body,
  * runs the requested operation, and returns the updated definition.

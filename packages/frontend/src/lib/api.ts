@@ -3,7 +3,7 @@
  * Slanger API client
  *
  * Languages live entirely in sessionStorage — cleared when the browser tab closes.
- * LLM operations POST the full LanguageDefinition to the backend (stateless LLM
+ * LLM operations POST the full LanguageDefinition to the backend (stateless Groq
  * proxy) and return an updated LanguageDefinition. No accounts, no login.
  */
 

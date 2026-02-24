@@ -4,13 +4,13 @@ import { initClient } from "@slanger/llm-orchestrator";
 import { buildApp } from "./app.js";
 
 async function start() {
-  // 1. Load config — fails fast on missing GEMINI_API_KEY / LLM_API_KEY
+  // 1. Load config — fails fast on missing OPENROUTER_API_KEY
   const config = initConfig();
 
-  // 2. Initialize LLM client (defaults to Gemini 2.5 Flash)
+  // 2. Initialize OpenRouter client
   initClient({
-    apiKey: config.llmApiKey,
-    model: config.llmModel,
+    apiKey: config.openRouterApiKey,
+    model: config.openRouterModel,
   });
 
   // 3. Start server

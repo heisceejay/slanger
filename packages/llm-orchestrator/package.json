@@ -1,7 +1,7 @@
 {
   "name": "@slanger/llm-orchestrator",
   "version": "1.0.0",
-  "description": "Slanger LLM Orchestrator — OpenAI-compatible LLM (Gemini) integration with validation gate",
+  "description": "Slanger LLM Orchestrator — Groq API (Llama) integration with validation gate",
   "main": "./dist/index.js",
   "type": "module",
   "scripts": {
