@@ -147,13 +147,13 @@ function mockMorphologyResponse() {
 function mockLexiconResponse(startId = 1, count = 5) {
   const entries = [];
   // Only valid CV/CVC words using mock inventory (t,n,k,s,m,l + a,e,i,o,u)
-  const cvSyllables = ["ta","na","ke","lu","mi","so","no","ka","se","tu","li","mu","ko","si","te","nu","lo","ma","ki","su","to","ni","le","mo","sa","ku","ti","ne","la","me"];
-  const cvcSyllables = ["tan","nak","kel","lus","min","son","nom","kan","sem","tuk","lis","muk","kon","sin","tem","nut","los","mak","kis","sul","tom","nil","lek","mol","sal","kun","til","nen","las","mel"];
-  const glosses = ["stone","go","big","I","one","not","water","see","small","you","two","and","fire","come","good","we","three","but","tree","give","bad","they","four","or","sun","take","long","he","five","yes","moon","eat","short","she","ten","no","sky","drink","hot","it","name","word","path","food","bird","fish","dog","head","eye","ear","mouth","hand","foot","heart","blood","bone","skin","hair","wind","rain","night","day","year","house","animal"];
-  const poss: Array<[string,string,string]> = [
-    ["noun","swadesh-core","nature"],["verb","swadesh-core","motion"],["adjective","swadesh-core","size"],
-    ["pronoun","personal-pronoun","person"],["numeral","cardinal-number","number"],["particle","negation","grammar"],
-    ["noun","swadesh-core","body"],["verb","swadesh-core","cognition"],["noun","swadesh-core","social"],
+  const cvSyllables = ["ta", "na", "ke", "lu", "mi", "so", "no", "ka", "se", "tu", "li", "mu", "ko", "si", "te", "nu", "lo", "ma", "ki", "su", "to", "ni", "le", "mo", "sa", "ku", "ti", "ne", "la", "me"];
+  const cvcSyllables = ["tan", "nak", "kel", "lus", "min", "son", "nom", "kan", "sem", "tuk", "lis", "muk", "kon", "sin", "tem", "nut", "los", "mak", "kis", "sul", "tom", "nil", "lek", "mol", "sal", "kun", "til", "nen", "las", "mel"];
+  const glosses = ["stone", "go", "big", "I", "one", "not", "water", "see", "small", "you", "two", "and", "fire", "come", "good", "we", "three", "but", "tree", "give", "bad", "they", "four", "or", "sun", "take", "long", "he", "five", "yes", "moon", "eat", "short", "she", "ten", "no", "sky", "drink", "hot", "it", "name", "word", "path", "food", "bird", "fish", "dog", "head", "eye", "ear", "mouth", "hand", "foot", "heart", "blood", "bone", "skin", "hair", "wind", "rain", "night", "day", "year", "house", "animal"];
+  const poss: Array<[string, string, string]> = [
+    ["noun", "swadesh-core", "nature"], ["verb", "swadesh-core", "motion"], ["adjective", "swadesh-core", "size"],
+    ["pronoun", "personal-pronoun", "person"], ["numeral", "cardinal-number", "number"], ["particle", "negation", "grammar"],
+    ["noun", "swadesh-core", "body"], ["verb", "swadesh-core", "cognition"], ["noun", "swadesh-core", "social"],
   ];
   for (let i = 0; i < count; i++) {
     const idx = startId + i;
@@ -229,7 +229,7 @@ function mockConsistencyResponse() {
 function setup(): MemoryCache {
   const cache = new MemoryCache();
   initCache(cache);
-  initClient({ apiKey: "test-key", model: "llama-3.1-8b-instant", maxApiRetries: 3, maxTokensStructured: 4096, maxTokensStreaming: 8192, baseUrl: "https://api.llm.com/openai/v1" });
+  initClient({ apiKey: "test-key", model: "gemini-1.5-flash", maxApiRetries: 3, maxTokensStructured: 4096, maxTokensStreaming: 8192, baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai" });
   return cache;
 }
 
@@ -451,8 +451,10 @@ await test("explain_rule is cached with 30-day TTL (verify no second Llm call)",
   setup();
   injectMockFetch(mockLlmResponse(mockExplainResponse()));
 
-  const req = { languageId: "test-explain", module: "phonology" as const, ruleRef: "allophony_1",
-    ruleData: {}, language: BASE_LANG, depth: "beginner" as const };
+  const req = {
+    languageId: "test-explain", module: "phonology" as const, ruleRef: "allophony_1",
+    ruleData: {}, language: BASE_LANG, depth: "beginner" as const
+  };
   const first = await explainRule(req);
   eq(first.fromCache, false);
 
@@ -508,7 +510,7 @@ await test("Network error triggers retry inside structuredRequest (2 fetch calls
     callCount++;
     if (callCount === 1) {
       // Return 429 rate limit — triggers backoff retry inside structuredRequest
-      return new Response(JSON.stringify({error:"rate limited"}), { status: 429, headers: { "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ error: "rate limited" }), { status: 429, headers: { "Content-Type": "application/json" } });
     }
     return new Response(JSON.stringify({
       choices: [{ message: { content: JSON.stringify(mockPhonologyResponse()), role: "assistant" }, finish_reason: "stop" }],
