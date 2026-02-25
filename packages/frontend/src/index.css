@@ -584,28 +584,35 @@ label {
   margin-bottom: 8px;
 }
 
-.interlinear-word {
+.interlinear-word-group {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
+  padding: 8px 12px;
+  background: var(--paper-mid);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  min-width: 80px;
 }
 
 .interlinear-orth {
-  font-size: 14px;
+  font-size: 15px;
   font-style: italic;
   font-weight: 600;
-}
-
-.interlinear-morph {
-  font-size: 11px;
-  opacity: 0.75;
+  color: var(--ink);
 }
 
 .interlinear-gloss {
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 0.05em;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.interlinear-morph {
+  font-size: 10px;
+  opacity: 0.5;
   text-transform: uppercase;
-  opacity: 0.6;
 }
 
 /* ── Validation badge ──────────────────────────────────────── */

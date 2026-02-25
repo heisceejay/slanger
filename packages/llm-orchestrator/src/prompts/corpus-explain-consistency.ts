@@ -140,6 +140,7 @@ CRITICAL:
 - If you use ANY word NOT in the lexicon above, you MUST add it to "newEntries".
 - Any word in "newEntries" MUST use ONLY the exact consonants and vowels listed in PHONOLOGY.
 - Leipzig glossing rules: capitalize grammatical abbreviations (NOM, ACC, 1SG, PAST), lowercase lexical glosses.
+- The \`morphemes\` array and \`glosses\` array MUST HAVE THE EXACT SAME LENGTH so they map 1:1 in the UI. Every morpheme must have exactly one corresponding gloss string.
 
 RESPOND WITH ONLY valid JSON. No markdown, no preamble.`.trim();
 }
