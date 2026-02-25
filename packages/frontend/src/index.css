@@ -587,24 +587,25 @@ label {
 .interlinear-word {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
 }
 
 .interlinear-orth {
   font-size: 14px;
   font-style: italic;
+  font-weight: 600;
 }
 
 .interlinear-morph {
-  font-size: 10px;
-  opacity: 0.5;
-  border-top: 1px solid var(--rule-heavy);
-  padding-top: 2px;
+  font-size: 11px;
+  opacity: 0.75;
 }
 
 .interlinear-gloss {
   font-size: 10px;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  opacity: 0.6;
 }
 
 /* ── Validation badge ──────────────────────────────────────── */
