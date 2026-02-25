@@ -23,7 +23,7 @@ You create corpus samples for constructed languages. Each sample must:
 3. MORPHOLOGY COMPLIANCE: Apply the correct inflectional morphology using the paradigm tables.
 4. LEXICON REUSE: You MUST prioritize using words from the provided lexicon. Do not coin a new word if a near-synonym already exists.
 5. NEW WORD CONSTRAINTS: If you ABSOLUTELY MUST coin a new word to make a sentence logical, you MUST add it to "newEntries". ANY new word MUST use ONLY the exact phonemes from the phonology inventory and follow the syllable templates.
-6. Produce grammatically complete interlinear glosses in Leipzig glossing convention.
+6. Produce interlinear glosses using plain English translations for each morpheme (NO LEIPZIG ABBREVIATIONS).
 7. Include IPA transcription (only allowed consonants and vowels from the phonology).
 8. English translation must be in SVO order for clarity, even if the conlang has different word order.
 9. TEMPLATIC MORPHOLOGY (if enabled): the 'morphemes' array should contain the root consonants (e.g. "k-t-b") and the 'glosses' should reflect the root meaning and the vocalic pattern meaning.`;
@@ -123,7 +123,7 @@ Generate exactly ${req.count} sample(s) following THIS JSON structure:
         {
           "word": "<orthographic word>",
           "morphemes": ["<root>", "-<suffix>"],
-          "glosses": ["ROOT.GLOSS", "GRAM.FEAT"]
+          "glosses": ["<english meaning>", "<normal english grammatical word, e.g. 'past' or 'plural'>"]
         }
       ],
       "prompt": "${req.userPrompt ?? ""}",
@@ -139,8 +139,8 @@ CRITICAL:
 - Write sentences that are logical and well-formed.
 - If you use ANY word NOT in the lexicon above, you MUST add it to "newEntries".
 - Any word in "newEntries" MUST use ONLY the exact consonants and vowels listed in PHONOLOGY.
-- Leipzig glossing rules: capitalize grammatical abbreviations (NOM, ACC, 1SG, PAST), lowercase lexical glosses.
-- The \`morphemes\` array and \`glosses\` array MUST HAVE THE EXACT SAME LENGTH so they map 1:1 in the UI. Every morpheme must have exactly one corresponding gloss string.
+- DO NOT use Leipzig glossing rules or grammatical abbreviations (like 1SG, NOM, PST). Use plain, normal English words for the glosses (e.g., "I", "past", "plural", "he").
+- The \`morphemes\` array and \`glosses\` array MUST HAVE THE EXACT SAME LENGTH so they map 1:1 in the UI. Every morpheme must have exactly one corresponding plain English gloss string.
 
 RESPOND WITH ONLY valid JSON. No markdown, no preamble.`.trim();
 }
