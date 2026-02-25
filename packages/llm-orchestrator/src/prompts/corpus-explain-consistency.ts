@@ -15,62 +15,100 @@ import type { CorpusSample, InterlinearLine, LexicalEntry, LanguageDefinition } 
 
 // ─── Op 4: generate_corpus ────────────────────────────────────────────────────
 
-export const CORPUS_SYSTEM_PROMPT = `You are an expert in constructed language text creation and interlinear glossing.
+export const CORPUS_SYSTEM_PROMPT = `You are an expert in constructed language text creation, syntax, and interlinear glossing.
 
 You create corpus samples for constructed languages. Each sample must:
-1. Be a coherent, natural sentence that makes sense (not random words). Prioritize words from the provided lexicon; if few logical sentences can be formed with the current lexicon, create new words via "newEntries" so you can write good sentences. Any new word MUST be listed in "newEntries" and use ONLY phonemes from the language's inventory.
-2. Follow the language's word order and clause structure (SOV, SVO, etc.) strictly — sentence structure must follow the language's morphology and syntax.
-3. Apply the correct inflectional morphology using the paradigm tables.
-4. Produce grammatically complete interlinear glosses in Leipzig glossing convention.
-5. Include IPA transcription (only allowed consonants and vowels from the phonology).
-6. English translation must be in SVO order for clarity, even if the conlang has different word order.
-7. Be appropriate for the specified register.
-8. If the language uses TEMPLATIC morphology: the 'morphemes' array should contain the root consonants (e.g. "k-t-b") and the 'glosses' should reflect the root meaning and the vocalic pattern meaning.`;
+1. Be a coherent, natural sentence that logically applies the requested clause types and registers.
+2. SYNTAX COMPLIANCE: Strictly follow the language's word order, phrase structure rules, headedness, and adposition type.
+3. MORPHOLOGY COMPLIANCE: Apply the correct inflectional morphology using the paradigm tables.
+4. LEXICON REUSE: You MUST prioritize using words from the provided lexicon. Do not coin a new word if a near-synonym already exists.
+5. NEW WORD CONSTRAINTS: If you ABSOLUTELY MUST coin a new word to make a sentence logical, you MUST add it to "newEntries". ANY new word MUST use ONLY the exact phonemes from the phonology inventory and follow the syllable templates.
+6. Produce grammatically complete interlinear glosses in Leipzig glossing convention.
+7. Include IPA transcription (only allowed consonants and vowels from the phonology).
+8. English translation must be in SVO order for clarity, even if the conlang has different word order.
+9. TEMPLATIC MORPHOLOGY (if enabled): the 'morphemes' array should contain the root consonants (e.g. "k-t-b") and the 'glosses' should reflect the root meaning and the vocalic pattern meaning.`;
 
 export function buildCorpusUserMessage(req: GenerateCorpusRequest, retryErrors?: string[]): string {
   const retryBlock = retryErrors?.length
-    ? `\n[PREVIOUS ATTEMPT ERRORS — FIX]\n${retryErrors.map((e, i) => `${i + 1}. ${e}`).join("\n")}\n`
+    ? `\n[PREVIOUS ATTEMPT ERRORS — FIX THESE STRICTLY]\n${retryErrors.map((e, i) => `${i + 1}. ${e}`).join("\n")}\n`
     : "";
 
-  const lexSample = req.language.lexicon.slice(0, 20).map(e =>
-    `  ${e.orthographicForm} /${e.phonologicalForm.replace(/^\/|\/$/g, "")}/ (${e.pos}) = "${e.glosses[0]}"`
+  // Increase lexicon sample drastically so model has more to work with
+  const lexSample = req.language.lexicon.slice(0, 40).map(e =>
+    `  ${e.orthographicForm} /${e.phonologicalForm.replace(/^\/|\/$/g, "")}/ (${e.pos}) = "${e.glosses.join(", ")}"`
   ).join("\n");
 
   const paradigmSample = JSON.stringify(
-    Object.fromEntries(Object.entries(req.language.morphology.paradigms).slice(0, 3)),
+    Object.fromEntries(Object.entries(req.language.morphology.paradigms).slice(0, 4)),
     null, 2
   );
+
+  // Serialize phrase structure rules into readable constituent rules
+  const phraseStructStr = Object.entries(req.language.syntax.phraseStructure)
+    .map(([head, slots]) => {
+      const slotDesc = slots.map(s => {
+        let sc = s.label;
+        if (s.optional) sc = `[${sc}]`;
+        if (s.repeatable) sc = `${sc}+`;
+        return sc;
+      }).join(" ");
+      return `  - ${head} → ${slotDesc}`;
+    }).join("\n");
+
+  const consonants = req.language.phonology.inventory.consonants;
+  const vowels = req.language.phonology.inventory.vowels;
+  const allowedOnly = [...consonants, ...vowels].join(", ");
 
   return `${retryBlock}
 Generate ${req.count} corpus sample(s) for this constructed language.
 
-LANGUAGE OVERVIEW:
-- Name: ${req.language.meta.name}
+═══════════════════════════════════════════
+SYNTAX (STRICT COMPLIANCE REQUIRED)
+═══════════════════════════════════════════
 - Word order: ${req.language.syntax.wordOrder}
-- Morphological type: ${req.language.morphology.typology}
-- Alignment: ${req.language.syntax.alignment}
-- Registers requested: ${req.registers.join(", ")}
-${req.userPrompt ? `\nUSER PROMPT: "${req.userPrompt}"` : ""}
+- Morphosyntactic alignment: ${req.language.syntax.alignment} (ensure subjects/objects are case-marked or agreed-with correctly according to this alignment)
+- Headedness: ${req.language.syntax.headedness}
+- Adposition type: ${req.language.syntax.adpositionType}
+- Supported clause types: ${req.language.syntax.clauseTypes.join(", ")}
+Phrase Structure Rules:
+${phraseStructStr || "  (Use standard X-bar theory mappings for the word order)"}
 
-LEXICON (prefer these words; you may add new words if needed — list every new word in newEntries):
+═══════════════════════════════════════════
+LEXICON & REUSE (PRIORITIZE THESE WORDS)
+═══════════════════════════════════════════
 ${lexSample}
-...and ${Math.max(0, req.language.lexicon.length - 20)} more entries.
+...and ${Math.max(0, req.language.lexicon.length - 40)} more entries.
+-> RULE: Construct your sentences using THESE words if at all possible. New words are a last resort.
 
-PARADIGM SAMPLE (for morphology):
-${paradigmSample}
-
-PHONOLOGY:
-- Consonants: ${req.language.phonology.inventory.consonants.join(" ")}
-- Vowels: ${req.language.phonology.inventory.vowels.join(" ")}
+═══════════════════════════════════════════
+PHONOLOGY (APPLIES TO IPA AND ANY NEW WORDS)
+═══════════════════════════════════════════
+- Consonants: ${consonants.join(" ")}
+- Vowels: ${vowels.join(" ")}
+- Allowed symbols: [ ${allowedOnly} ]
+- Syllable templates: ${req.language.phonology.phonotactics.syllableTemplates.join(", ")}
 ${req.language.phonology.writingSystem ? `- Writing System: ${req.language.phonology.writingSystem.type} (${JSON.stringify(req.language.phonology.writingSystem.aesthetics)})` : ""}
 
+═══════════════════════════════════════════
+MORPHOLOGY PARADIGMS (SAMPLE)
+═══════════════════════════════════════════
+Typology: ${req.language.morphology.typology}
+${paradigmSample}
+
 ${req.language.morphology.templatic?.enabled
-      ? `TEMPLATIC MORPHOLOGY:
+      ? `TEMPLATIC MORPHOLOGY ENABLED:
 - Roots are consonant clusters (e.g. "k-t-b").
 - Inflection happens by inserting vowels per templates: ${req.language.morphology.templatic.rootTemplates.join(", ")}.
 - Vocalisms: ${JSON.stringify(req.language.morphology.templatic.vocaloidPatterns)}`
       : ""
     }
+
+═══════════════════════════════════════════
+REQUEST DETAILS
+═══════════════════════════════════════════
+- Language Name: ${req.language.meta.name}
+- Registers requested: ${req.registers.join(", ")}
+${req.userPrompt ? `- USER PROMPT: "${req.userPrompt}"` : ""}
 
 Generate exactly ${req.count} sample(s) following THIS JSON structure:
 {
@@ -97,13 +135,13 @@ Generate exactly ${req.count} sample(s) following THIS JSON structure:
   ]
 }
 
-Leipzig glossing rules: capitalize grammatical abbreviations (NOM, ACC, 1SG, PAST, etc.), lowercase lexical glosses.
-
 CRITICAL:
-- Write sentences that make sense. Prefer lexicon words; when the lexicon is too small for varied, natural sentences, add new words in newEntries.
-- Use ONLY the consonants and vowels listed in PHONOLOGY for any new word (phonologicalForm and ipaText).
-- If you use any word NOT in the lexicon, you MUST add it to "newEntries" with orthographicForm, phonologicalForm, pos, and glosses.
-- Conlang sentence structure follows this language's morphology and syntax; English translation must be SVO.`.trim();
+- Write sentences that are logical and well-formed.
+- If you use ANY word NOT in the lexicon above, you MUST add it to "newEntries".
+- Any word in "newEntries" MUST use ONLY the exact consonants and vowels listed in PHONOLOGY.
+- Leipzig glossing rules: capitalize grammatical abbreviations (NOM, ACC, 1SG, PAST), lowercase lexical glosses.
+
+RESPOND WITH ONLY valid JSON. No markdown, no preamble.`.trim();
 }
 
 /**

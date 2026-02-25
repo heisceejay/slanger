@@ -6,6 +6,7 @@
  *  - Use only inventory phonemes
  *  - Respect phonotactic templates
  *  - Have orthographic form derived from the orthography map
+ *  - Be morphologically compatible: root + common affixes must stay phonotactically valid
  *  - Include polysemy where semantically motivated
  *  - Have semantic roles for verbs
  *  - Avoid collision with existing forms
@@ -18,13 +19,20 @@ export function buildSystemPrompt(): string {
   return `You are a linguistic expert specializing in constructed language lexicon design.
 
 You generate vocabulary for constructed languages. Each word must:
-1. Use ONLY phonemes from the provided inventory — NO exceptions.
-2. Follow the syllable templates exactly.
-3. Respect morphological rules (root templates, morpheme orders).
-4. Have a valid IPA form AND orthographic form (from the orthography map).
-5. Include polysemy where natural (1-2 senses per word).
-6. Avoid phonological collision with existing words.
-7. NEVER invent new phonemes.
+1. Use ONLY phonemes from the provided inventory — NO exceptions, not even for visually similar symbols.
+2. Follow the syllable templates exactly — every syllable in the word must match one of the provided templates.
+3. Be morphologically compatible: after adding any common affix, the resulting form must still use only inventory phonemes and valid syllable templates.
+4. Have a valid IPA phonologicalForm AND orthographicForm derived from the orthography map.
+5. Respect morpheme order (PREFIX → ROOT → SUFFIX where applicable) — roots must be designable to attach affixes cleanly.
+6. Include polysemy only where semantically natural (1–2 senses per word).
+7. Avoid phonological collision with existing words.
+8. NEVER invent new phonemes. If unsure whether a symbol is in the inventory, do not use it.
+
+MORPHOLOGICAL COMPATIBILITY CHECK (mandatory for every entry):
+- Look at the COMMON AFFIXES list provided in the user message.
+- Mentally compose: ROOT + each affix listed.
+- Verify the composite form still uses only inventory phonemes and a valid syllable template.
+- Adjust the root until all common affix combinations are phonotactically valid.
 
 Generate core vocabulary efficiently. Prioritize Swadesh-style words.`;
 }
@@ -40,7 +48,28 @@ export function buildUserMessage(req: GenerateLexiconRequest, lang: LanguageDefi
   const vowStr = vowels.join(" ");
   const allowedOnly = [...consonants, ...vowels].join(", ");
   const templates = req.phonology.phonotactics.syllableTemplates.join(", ");
-  const orthSample = Object.entries(req.phonology.orthography).slice(0, 8).map(([p, g]) => `${p}→${g}`).join(", ");
+  const orthSample = Object.entries(req.phonology.orthography).slice(0, 12).map(([p, g]) => `${p}→${g}`).join(", ");
+
+  // Extract flat affix samples from paradigms so the model can check root compatibility
+  const affixSamples: string[] = [];
+  for (const [paradigmKey, paradigm] of Object.entries(lang.morphology.paradigms).slice(0, 4)) {
+    const rows = (paradigm as Record<string, unknown>)?.rows;
+    if (Array.isArray(rows)) {
+      for (const row of (rows as Record<string, unknown>[]).slice(0, 3)) {
+        const suffix = row?.suffix ?? row?.affix ?? row?.form;
+        const label = row?.label ?? row?.gloss ?? paradigmKey;
+        if (typeof suffix === "string" && suffix.trim()) {
+          affixSamples.push(`"${suffix}" (${String(label)})`);
+        }
+      }
+    }
+    if (affixSamples.length >= 8) break;
+  }
+  const affixBlock = affixSamples.length
+    ? `\nCOMMON AFFIXES (roots must remain phonotactically valid when these are attached):\n${affixSamples.join(", ")}`
+    : "";
+
+  const morphemeOrderStr = lang.morphology.morphemeOrder?.join(" → ") ?? "root";
 
   const slotsBlock = req.targetSlots
     .slice(0, req.batchSize)
@@ -48,44 +77,67 @@ export function buildUserMessage(req: GenerateLexiconRequest, lang: LanguageDefi
     .join("\n");
 
   const existingBlock = req.existingOrthForms.length
-    ? `\nAVOID THESE EXISTING FORMS (don't create homophones):\n${req.existingOrthForms.slice(0, 10).join(", ")}`
+    ? `\nAVOID THESE EXISTING FORMS (no homophones or near-homophones):\n${req.existingOrthForms.slice(0, 15).join(", ")}`
     : "";
 
   const worldNote = lang.meta.world
-    ? `\nWORLD/CULTURE CONTEXT: "${lang.meta.world}" — let this flavor naming conventions subtly`
+    ? `\nWORLD/CULTURE CONTEXT: "${lang.meta.world}" — let this subtly flavor naming conventions`
     : "";
 
   return `${retryBlock}
 Generate ${req.batchSize} lexical entries for a constructed language.
 
-PHONEME INVENTORY (use ONLY these symbols in phonologicalForm — no others):
-- Consonants: ${consStr}
-- Vowels: ${vowStr}
-- Syllable templates: ${templates}
-- Orthography (IPA→spelling): ${orthSample}
+═══════════════════════════════════════════
+PHONOLOGY (STRICT — ZERO EXCEPTIONS)
+═══════════════════════════════════════════
+Consonants: ${consStr}
+Vowels: ${vowStr}
+Syllable templates: ${templates}
+Orthography map (IPA→spelling): ${orthSample}
 
 ALLOWED IPA SYMBOLS ONLY: [ ${allowedOnly} ]
-Do NOT use ɛ, ɔ, ɑ, ɪ, ʊ, ə, æ, ʒ, ʃ, θ, ð, ŋ, etc. unless they appear in the list above. Use the exact vowels/consonants from this language (e.g. if vowels are a e i o u, write /kana/ not /kɑnɑ/).
+Do NOT use ɛ, ɔ, ɑ, ɪ, ʊ, ə, æ, ʒ, ʃ, θ, ð, ŋ, or ANY symbol not in the list above.
+Example: if vowels are /a e i o u/, write /kana/ not /kɑnɑ/. If only /p t k/ are stops, do not write /b d g/.
 
-MORPHOLOGY: typology ${lang.morphology.typology}. Follow the language's inflectional categories and paradigm structure (e.g. noun cases, verb agreement) when generating words; root forms should be compatible with the morphology.
-NATURALISM SCORE: ${req.naturalismScore.toFixed(2)} (0=experimental, 1=naturalistic)
-TAGS: ${req.tags.join(", ") || "none"}
+═══════════════════════════════════════════
+MORPHOLOGY
+═══════════════════════════════════════════
+Typology: ${lang.morphology.typology}
+Morpheme order: ${morphemeOrderStr}
+${lang.morphology.categories ? `Inflectional categories: ${JSON.stringify(lang.morphology.categories).slice(0, 300)}` : ""}
+${affixBlock}
+
+ROOT COMPATIBILITY REQUIREMENT:
+For each root you generate, verify:
+  (a) ROOT alone → uses only [ ${allowedOnly} ] and fits template(s): ${templates}
+  (b) ROOT + each affix above → still uses only [ ${allowedOnly} ] and fits template(s): ${templates}
+  If any combination fails, choose a different root shape.
 ${lang.morphology.templatic?.enabled
-      ? `\nTEMPLATIC MORPHOLOGY ENABLED:
-- For this language, roots are NOT whole words.
-- 'phonologicalForm' MUST be a sequence of consonants representing the root (e.g. "k-t-b").
-- 'orthographicForm' should be the orthographic representation of that root.
-- The root must have exactly as many consonants as the 'rootTemplates' expect (usualy 3).`
-      : ""
-    }
+      ? `
+TEMPLATIC MORPHOLOGY ENABLED:
+- Roots are NOT whole words — they are bare consonant sequences (e.g. "k-t-b").
+- 'phonologicalForm' MUST be those consonants (e.g. "/k-t-b/").
+- 'orthographicForm' is the orthographic rendering of that consonant sequence.
+- Root must have exactly ${lang.morphology.templatic.rootTemplates?.[0]?.replace(/[^C]/g, "").length ?? 3} consonants.`
+      : ""}
+
+═══════════════════════════════════════════
+CONTEXT
+═══════════════════════════════════════════
+Naturalism score: ${req.naturalismScore.toFixed(2)} (0=experimental, 1=naturalistic — higher means more regular, predictable phonology)
+Tags: ${req.tags.join(", ") || "none"}
 ${worldNote}
 ${existingBlock}
 
-SEMANTIC SLOTS TO FILL (generate one entry per slot):
+═══════════════════════════════════════════
+SEMANTIC SLOTS TO FILL (one entry per slot)
+═══════════════════════════════════════════
 ${slotsBlock}
 
-For each entry, generate the IPA form by combining phonemes per templates.
-Derive the orthographic form by substituting each IPA phoneme using the orthography map.
+STEPS for each entry:
+1. Pick a root shape compatible with inventory and templates.
+2. Run the ROOT COMPATIBILITY CHECK (attach common affixes, verify still valid).
+3. Map each IPA phoneme through the orthography map to get the orthographic form.
 
 Respond with ONLY this JSON:
 {
@@ -106,7 +158,7 @@ Respond with ONLY this JSON:
       "source": "generated"
     }
   ],
-  "phonologicalNotes": "<brief note on phonological patterns used>"
+  "phonologicalNotes": "<brief note on root shapes chosen and affix compatibility verified>"
 }
 
 RESPOND WITH ONLY valid JSON. No markdown, no preamble.
