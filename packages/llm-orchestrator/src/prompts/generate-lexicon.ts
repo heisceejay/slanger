@@ -36,10 +36,10 @@ MORPHOLOGICAL COMPATIBILITY CHECK (mandatory for every entry):
 - Adjust the root until all common affix combinations are phonotactically valid.
 
 WARNING ABOUT ENGLISH CALQUES (VERY STRICT!):
-- Do NOT provide English words disguised with IPA (e.g. "with", "from", "to", "or", "no", "so", "not").
+- Do NOT provide English words disguised with IPA (e.g. "with", "from", "to", "or", "no", "so", "not", "yes").
 - Functional/grammar words MUST BE COMPLETELY INVENTED ROOTS.
-- If your word looks or sounds like the English translation (e.g. /sɔ/ for "so", /ur/ for "or", /nɔt/ for "not"), IT WILL FAIL.
-- Instead, invent roots that look totally different (e.g., /tasi/ for "so", /vum/ for "or", /kana/ for "not").
+- If your word looks or sounds like the English translation (e.g. /sɔ/ for "so", /ur/ for "or", /nɔt/ for "not", /es/ or /jɛs/ for "yes"), IT WILL FAIL.
+- Instead, invent roots that look totally different (e.g., /tasi/ for "so", /vum/ for "or", /kana/ for "not", /zivu/ for "yes").
 
 Generate core vocabulary efficiently. Prioritize Swadesh-style words.`;
 }
@@ -48,7 +48,7 @@ export function buildUserMessage(req: GenerateLexiconRequest, lang: LanguageDefi
   const retryBlock = retryErrors?.length
     ? `\n[PREVIOUS ATTEMPT ERRORS — FIX THESE]\n${retryErrors.map((e, i) => `${i + 1}. ${e}`).join("\n")}
 CRITICAL RETRY INSTRUCTIONS:
-1. ILLEGAL SYMBOL OR CALQUE: If a word failed for using an illegal phoneme (like /ɔ/ or /ɪ/), OR failed phonotactics, you likely tried to copy an English word like "so", "or", "no", or "not". DO NOT JUST SWAP ONE VOWEL. You MUST invent a COMPLETELY NEW, unrelated spelling (e.g. /taka/, /vum/, /pali/) using only the allowed inventory!
+1. ILLEGAL SYMBOL OR CALQUE: If a word failed for using an illegal phoneme (like /ɔ/ or /ɪ/), OR failed phonotactics, you likely tried to copy an English word like "so", "or", "no", "yes", or "not". DO NOT JUST SWAP ONE VOWEL. You MUST invent a COMPLETELY NEW, unrelated spelling (e.g. /taka/, /vum/, /pali/) using only the allowed inventory!
 2. MORPHOLOGY / VOWEL HIATUS: If you see a [morphology MORPH_PHN_PHON] error that a Syllable (pattern:V) doesn't match templates (e.g. [CV, CVC]), your root ended in a vowel! When a vowel-suffix attached to it, it created an illegal vowel-only syllable. FIX THIS BY REDESIGNING YOUR ROOT TO END IN A CONSONANT!\n`
     : "";
 
@@ -123,7 +123,7 @@ Orthography map (IPA→spelling): ${orthSample}
 ALLOWED IPA SYMBOLS ONLY: [ ${allowedOnly} ]
 Do NOT use ɛ, ɔ, ɑ, ɪ, ʊ, ə, æ, ʒ, ʃ, θ, ð, ŋ, or ANY symbol not in the list above.
 Example: if vowels are /a e i o u/, write /kana/ not /kɑnɑ/. If only /p t k/ are stops, do not write /b d g/.
-CRITICAL: Do not spell out English words ("with", "from", "or", "no", "not", "so") using their English pronunciation! INVENT A NEW VALID ROOT INSTEAD! For example, for "so" or "not", invent a root like /ma/, /pali/, or /tusi/ using your allowed phonemes, rather than trying to force /sɔ/ or /ur/!
+CRITICAL: Do not spell out English words ("with", "from", "or", "no", "not", "so", "yes") using their English pronunciation! INVENT A NEW VALID ROOT INSTEAD! For example, for "so", "not", or "yes", invent a root like /ma/, /pali/, or /tusi/ using your allowed phonemes, rather than trying to force /sɔ/, /ur/, or /es/!
 
 ═══════════════════════════════════════════
 MORPHOLOGY
