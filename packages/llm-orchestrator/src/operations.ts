@@ -201,7 +201,13 @@ export async function generateLexicon(
     });
 
     let parsed: GenerateLexiconResponse;
-    try { parsed = GenerateLexiconPrompt.parseResponse(raw, startId); }
+    try {
+      parsed = GenerateLexiconPrompt.parseResponse(
+        raw,
+        startId,
+        [...baseLanguage.phonology.inventory.consonants, ...baseLanguage.phonology.inventory.vowels]
+      );
+    }
     catch (e) {
       retryReasons.push([`Parse error: ${e instanceof Error ? e.message : String(e)}`]);
       if (attempt === MAX_ATTEMPTS) throw buildOperationError("generate_lexicon", attempt, retryReasons, start);

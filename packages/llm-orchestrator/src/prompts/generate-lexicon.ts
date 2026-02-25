@@ -34,6 +34,11 @@ MORPHOLOGICAL COMPATIBILITY CHECK (mandatory for every entry):
 - Verify the composite form still uses only inventory phonemes and a valid syllable template.
 - Adjust the root until all common affix combinations are phonotactically valid.
 
+WARNING ABOUT ENGLISH CALQUES:
+- Do NOT just provide English words like "with", "from", "to" disguised with IPA.
+- If you invent a functional word, make up a NEW root using the allowed phonemes.
+- If an English word's IPA (like /frɔm/ or /wɪð/) uses symbols NOT in your inventory (like /ɔ/, /ɪ/, /ð/), it is strictly ILLEGAL.
+
 Generate core vocabulary efficiently. Prioritize Swadesh-style words.`;
 }
 
@@ -113,6 +118,7 @@ Orthography map (IPA→spelling): ${orthSample}
 ALLOWED IPA SYMBOLS ONLY: [ ${allowedOnly} ]
 Do NOT use ɛ, ɔ, ɑ, ɪ, ʊ, ə, æ, ʒ, ʃ, θ, ð, ŋ, or ANY symbol not in the list above.
 Example: if vowels are /a e i o u/, write /kana/ not /kɑnɑ/. If only /p t k/ are stops, do not write /b d g/.
+CRITICAL: Do not spell out English words ("with", "from", "or", "no") if their true IPA uses symbols not in your constrained inventory. Invent a new valid root instead!
 
 ═══════════════════════════════════════════
 MORPHOLOGY
@@ -180,7 +186,7 @@ RESPOND WITH ONLY valid JSON. No markdown, no preamble.
 IDs: lex_0001, lex_0002, etc. Phonemes only from: ${allowedOnly}. Templates: ${templates}.`.trim();
 }
 
-export function parseResponse(raw: string, startId: number): GenerateLexiconResponse {
+export function parseResponse(raw: string, startId: number, inventoryPhonemes: string[]): GenerateLexiconResponse {
   const parsed = JSON.parse(raw) as Partial<GenerateLexiconResponse>;
 
   if (!Array.isArray(parsed.entries)) throw new Error('Response missing "entries" array');
@@ -206,14 +212,28 @@ export function parseResponse(raw: string, startId: number): GenerateLexiconResp
     if (Array.isArray(e["senses"])) entry.senses = e["senses"] as LexicalEntry["senses"] ?? [];
     if (Array.isArray(e["semanticRoles"])) entry.semanticRoles = e["semanticRoles"] as LexicalEntry["semanticRoles"] ?? [];
     if (e["etymology"]) entry.etymology = String(e["etymology"]);
+
+    // Strip slashes from phonological form for consistency with the rest of the app
+    entry.phonologicalForm = entry.phonologicalForm.replace(/^\/+|\/+$/g, "");
+
     return entry;
   });
 
-  // Basic structural checks
+  // Basic structural and strict phoneme checks
+  const allowedSet = new Set(inventoryPhonemes);
   for (const entry of entries) {
     if (!entry.phonologicalForm) throw new Error(`Entry ${entry.id} missing phonologicalForm`);
     if (!entry.orthographicForm) throw new Error(`Entry ${entry.id} missing orthographicForm`);
     if (entry.glosses.length === 0) throw new Error(`Entry ${entry.id} has no glosses`);
+
+    // Strict fast-fail check for hallucinated phonemes
+    // This feeds directly back into the LLM retry loop
+    const characters = Array.from(entry.phonologicalForm);
+    for (const char of characters) {
+      if (/[a-zɐ-ʒ]/.test(char) && !allowedSet.has(char)) {
+        throw new Error(`Entry ${entry.id} ("${entry.orthographicForm}") uses ILLEGAL symbol /${char}/ in /${entry.phonologicalForm}/. You MUST ONLY use the allowed inventory symbols.`);
+      }
+    }
   }
 
   return {
