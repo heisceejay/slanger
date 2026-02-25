@@ -49,14 +49,17 @@ export function PhonologyView({ lang, onUpdated }: { lang: Language; onUpdated: 
       const { language, rationale: r } = await suggestInventory(lang);
 
       // Update: Sync writing system if it exists to ensure new phonemes are mapped
+      let finalLang = language;
       if (language.phonology.writingSystem) {
         language.phonology.writingSystem = syncAndRegenerateGlyphs(
           language.phonology.inventory,
           language.phonology.writingSystem
         );
+        const saved = updateLanguage(language.meta.id, { phonology: language.phonology });
+        if (saved) finalLang = saved;
       }
 
-      onUpdated(language);
+      onUpdated(finalLang);
       setRationale(r);
     } catch (e) {
       setError((e as Error).message);
