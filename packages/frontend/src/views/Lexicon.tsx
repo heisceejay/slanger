@@ -92,7 +92,7 @@ export function LexiconView({
     }
   }
 
-  const coveragePct = Math.round((entries.length / 2000) * 100);
+  const coveragePct = Math.round((entries.length / 1500) * 100);
   const hasPhonology = (lang.phonology?.inventory?.consonants?.length ?? 0) > 0 && (lang.phonology?.inventory?.vowels?.length ?? 0) > 0;
   const hasMorphology = Object.values(lang.morphology?.categories ?? {}).some(c => c.length > 0) || Object.keys(lang.morphology?.paradigms ?? {}).length > 0;
   const canGenerateLexicon = hasPhonology && hasMorphology;
@@ -141,7 +141,7 @@ export function LexiconView({
                 <span style={{ fontSize: 9, textTransform: "uppercase", letterSpacing: "0.15em", opacity: 0.5 }}>
                   Vocabulary Coverage
                 </span>
-                <span style={{ fontSize: 9, opacity: 0.5 }}>{entries.length} / 2000 target</span>
+                <span style={{ fontSize: 9, opacity: 0.5 }}>{entries.length} / 1500 target</span>
               </div>
               <div className="progress-bar-track">
                 <div className="progress-bar-fill" style={{ width: `${Math.min(coveragePct, 100)}%` }} />
