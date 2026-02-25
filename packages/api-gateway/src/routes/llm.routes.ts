@@ -147,7 +147,7 @@ export async function llmRoutes(fastify: FastifyInstance): Promise<void> {
         ));
       }
 
-      const batchSize = Math.min(body.batchSize ?? 5, 5);
+      const batchSize = Math.min(body.batchSize ?? 15, 25);
 
       const existingGlosses = new Set(lang.lexicon.flatMap((e: { glosses?: string[] }) => {
         const arr = Array.isArray(e.glosses) ? e.glosses : (e.glosses ? [e.glosses] : []);

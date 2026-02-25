@@ -494,7 +494,7 @@ export async function fillParadigms(lang: Language): Promise<FillResult> {
   return { language: persistWithHistory(lang, res.data.language, "Before: Fill paradigm gaps"), rationale: res.data.rationale ?? "" };
 }
 
-export async function generateLexicon(lang: Language, batchSize = 5): Promise<Language> {
+export async function generateLexicon(lang: Language, batchSize = 15): Promise<Language> {
   const res = await request<LLMResp>("POST", "/generate-lexicon", { language: stripForApi(lang), batchSize });
   return persistWithHistory(lang, res.data.language, "Before: Generate lexicon batch");
 }
