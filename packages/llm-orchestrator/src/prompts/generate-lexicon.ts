@@ -191,7 +191,7 @@ RESPOND WITH ONLY valid JSON. No markdown, no preamble.
 IDs: lex_0001, lex_0002, etc. Phonemes only from: ${allowedOnly}. Templates: ${templates}.`.trim();
 }
 
-export function parseResponse(raw: string, startId: number, inventoryPhonemes: string[], phonotactics: Phonotactics): GenerateLexiconResponse {
+export function parseResponse(raw: string, startId: number, inventory: { consonants: string[], vowels: string[] }, phonotactics: Phonotactics): GenerateLexiconResponse {
   const parsed = JSON.parse(raw) as Partial<GenerateLexiconResponse>;
 
   if (!Array.isArray(parsed.entries)) throw new Error('Response missing "entries" array');
@@ -225,7 +225,7 @@ export function parseResponse(raw: string, startId: number, inventoryPhonemes: s
   });
 
   // Basic structural and strict phoneme checks
-  const allowedSet = new Set(inventoryPhonemes);
+  const allowedSet = new Set([...inventory.consonants, ...inventory.vowels]);
   for (const entry of entries) {
     if (!entry.phonologicalForm) throw new Error(`Entry ${entry.id} missing phonologicalForm`);
     if (!entry.orthographicForm) throw new Error(`Entry ${entry.id} missing orthographicForm`);
@@ -242,8 +242,8 @@ export function parseResponse(raw: string, startId: number, inventoryPhonemes: s
 
     // Strict fast-fail check for phonotactic structure
     const phonoResult = validateWordForm(`/${entry.phonologicalForm}/`, phonotactics, {
-      consonants: inventoryPhonemes.filter(p => !/[aeiouyɯɪʊɛɔɑæøœy]/.test(p)), // Approximation for validation
-      vowels: inventoryPhonemes.filter(p => /[aeiouyɯɪʊɛɔɑæøœy]/.test(p)),
+      consonants: inventory.consonants,
+      vowels: inventory.vowels,
       tones: []
     });
     if (!phonoResult.valid) {
