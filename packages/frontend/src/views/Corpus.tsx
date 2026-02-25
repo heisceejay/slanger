@@ -194,18 +194,12 @@ export function CorpusView({
                   </div>
                 )}
 
-                {/* Translation */}
-                <div style={{ fontSize: 13, opacity: 0.7, marginBottom: 12 }}>
-                  '{s.translation}'
-                </div>
-
                 {/* Interlinear gloss */}
                 {expanded.has(s.id) && s.interlinearGloss && s.interlinearGloss.length > 0 && (
                   <div
                     style={{
-                      borderTop: "1px solid var(--rule)",
-                      paddingTop: 12,
                       marginTop: 4,
+                      marginBottom: 16,
                     }}
                   >
                     <div className="muted small mb8" style={{ textTransform: "uppercase", letterSpacing: "0.1em" }}>
@@ -222,6 +216,11 @@ export function CorpusView({
                     </div>
                   </div>
                 )}
+
+                {/* Translation */}
+                <div style={{ fontSize: 14, opacity: 0.8, marginTop: 12, borderTop: expanded.has(s.id) ? "1px solid var(--rule)" : "none", paddingTop: expanded.has(s.id) ? 12 : 0 }}>
+                  '{s.translation}'
+                </div>
               </div>
             ))}
           </div>

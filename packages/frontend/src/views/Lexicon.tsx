@@ -36,9 +36,9 @@ export function LexiconView({
     return entries.filter((e) => {
       const matchSearch =
         !search ||
-        (e.orthographicForm && e.orthographicForm.toLowerCase().includes(search.toLowerCase())) ||
-        (e.glosses && e.glosses.some((g) => g.toLowerCase().includes(search.toLowerCase()))) ||
-        (e.semanticFields && e.semanticFields.some((f) => f.toLowerCase().includes(search.toLowerCase())));
+        (e.orthographicForm && typeof e.orthographicForm === "string" && e.orthographicForm.toLowerCase().includes(search.toLowerCase())) ||
+        (Array.isArray(e.glosses) && e.glosses.some((g) => typeof g === "string" && g.toLowerCase().includes(search.toLowerCase()))) ||
+        (Array.isArray(e.semanticFields) && e.semanticFields.some((f) => typeof f === "string" && f.toLowerCase().includes(search.toLowerCase())));
       const matchPos = posFilter === "all" || e.pos === posFilter;
       return matchSearch && matchPos;
     });

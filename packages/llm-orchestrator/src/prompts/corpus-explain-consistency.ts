@@ -173,23 +173,17 @@ export function normalizeCorpusSamplesToLexicon(
     return orthToEntry.get(word) ?? orthToEntry.get(word.toLowerCase()) ?? null;
   }
 
-  function findEntryByGloss(line: InterlinearLine): LexicalEntry | null {
-    const firstGloss = (line.glosses?.[0] ?? "").trim().toLowerCase();
-    if (!firstGloss) return null;
-    return glossToEntry.get(firstGloss) ?? null;
-  }
-
   return samples.map((sample) => {
     const interlinear = sample.interlinearGloss ?? [];
     const normalizedLines: InterlinearLine[] = interlinear.map((line) => {
-      const entry = findEntry(line) ?? findEntryByGloss(line);
+      const entry = findEntry(line);
       const word = entry ? entry.orthographicForm : line.word;
       return { ...line, word: word ?? line.word };
     });
 
     const orthographicText = normalizedLines.map((l) => l.word ?? "").join(" ").replace(/\s+/g, " ").trim();
     const ipaParts = normalizedLines.map((line) => {
-      const entry = findEntry(line) ?? findEntryByGloss(line);
+      const entry = findEntry(line);
       if (entry?.phonologicalForm) return entry.phonologicalForm.replace(/^\/|\/$/g, "").trim();
       return "";
     });
