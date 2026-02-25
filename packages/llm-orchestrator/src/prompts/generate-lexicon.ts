@@ -35,10 +35,11 @@ MORPHOLOGICAL COMPATIBILITY CHECK (mandatory for every entry):
 - Verify the composite form still uses only inventory phonemes and a valid syllable template.
 - Adjust the root until all common affix combinations are phonotactically valid.
 
-WARNING ABOUT ENGLISH CALQUES:
-- Do NOT just provide English words like "with", "from", "to" disguised with IPA.
-- If you invent a functional word, make up a NEW root using the allowed phonemes.
-- If an English word's IPA (like /frɔm/ or /wɪð/) uses symbols NOT in your inventory (like /ɔ/, /ɪ/, /ð/), it is strictly ILLEGAL.
+WARNING ABOUT ENGLISH CALQUES (VERY STRICT!):
+- Do NOT provide English words disguised with IPA (e.g. "with", "from", "to", "or", "no", "so", "not").
+- Functional/grammar words MUST BE COMPLETELY INVENTED ROOTS.
+- If your word looks or sounds like the English translation (e.g. /sɔ/ for "so", /ur/ for "or", /nɔt/ for "not"), IT WILL FAIL.
+- Instead, invent roots that look totally different (e.g., /tasi/ for "so", /vum/ for "or", /kana/ for "not").
 
 Generate core vocabulary efficiently. Prioritize Swadesh-style words.`;
 }
@@ -47,7 +48,7 @@ export function buildUserMessage(req: GenerateLexiconRequest, lang: LanguageDefi
   const retryBlock = retryErrors?.length
     ? `\n[PREVIOUS ATTEMPT ERRORS — FIX THESE]\n${retryErrors.map((e, i) => `${i + 1}. ${e}`).join("\n")}
 CRITICAL RETRY INSTRUCTIONS:
-1. ILLEGAL SYMBOL: If a word failed for using an illegal phoneme (like /ɔ/ or /ɪ/), DO NOT just swap one vowel. INVENT A COMPLETELY NEW, UNRELATED ROOT using only the allowed inventory!
+1. ILLEGAL SYMBOL OR CALQUE: If a word failed for using an illegal phoneme (like /ɔ/ or /ɪ/), OR failed phonotactics, you likely tried to copy an English word like "so", "or", "no", or "not". DO NOT JUST SWAP ONE VOWEL. You MUST invent a COMPLETELY NEW, unrelated spelling (e.g. /taka/, /vum/, /pali/) using only the allowed inventory!
 2. MORPHOLOGY / VOWEL HIATUS: If you see a [morphology MORPH_PHN_PHON] error that a Syllable (pattern:V) doesn't match templates (e.g. [CV, CVC]), your root ended in a vowel! When a vowel-suffix attached to it, it created an illegal vowel-only syllable. FIX THIS BY REDESIGNING YOUR ROOT TO END IN A CONSONANT!\n`
     : "";
 
@@ -122,7 +123,7 @@ Orthography map (IPA→spelling): ${orthSample}
 ALLOWED IPA SYMBOLS ONLY: [ ${allowedOnly} ]
 Do NOT use ɛ, ɔ, ɑ, ɪ, ʊ, ə, æ, ʒ, ʃ, θ, ð, ŋ, or ANY symbol not in the list above.
 Example: if vowels are /a e i o u/, write /kana/ not /kɑnɑ/. If only /p t k/ are stops, do not write /b d g/.
-CRITICAL: Do not spell out English words ("with", "from", "or", "no", "not") using their English pronunciation if it requires symbols not in your constrained inventory. INVENT A NEW VALID ROOT INSTEAD! For example, for "not", invent a root like /ma/ or /tusi/ using your allowed phonemes, rather than trying to force /nɔt/ or /nat/!
+CRITICAL: Do not spell out English words ("with", "from", "or", "no", "not", "so") using their English pronunciation! INVENT A NEW VALID ROOT INSTEAD! For example, for "so" or "not", invent a root like /ma/, /pali/, or /tusi/ using your allowed phonemes, rather than trying to force /sɔ/ or /ur/!
 
 ═══════════════════════════════════════════
 MORPHOLOGY
