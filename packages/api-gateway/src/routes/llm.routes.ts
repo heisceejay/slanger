@@ -149,7 +149,10 @@ export async function llmRoutes(fastify: FastifyInstance): Promise<void> {
 
       const batchSize = Math.min(body.batchSize ?? 5, 5);
 
-      const existingGlosses = new Set(lang.lexicon.flatMap((e: { glosses?: string[] }) => (e.glosses ?? []).map((g: string) => g.toLowerCase())));
+      const existingGlosses = new Set(lang.lexicon.flatMap((e: { glosses?: string[] }) => {
+        const arr = Array.isArray(e.glosses) ? e.glosses : (e.glosses ? [e.glosses] : []);
+        return arr.map((g) => String(g).toLowerCase());
+      }));
       const missingSlots = CORE_VOCABULARY_SLOTS
         .filter((s) => !existingGlosses.has(s.slot.toLowerCase()))
         .slice(0, batchSize);

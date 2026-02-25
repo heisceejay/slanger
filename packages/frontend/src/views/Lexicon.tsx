@@ -37,6 +37,7 @@ export function LexiconView({
       const matchSearch =
         !search ||
         (e.orthographicForm && typeof e.orthographicForm === "string" && e.orthographicForm.toLowerCase().includes(search.toLowerCase())) ||
+        (e.phonologicalForm && typeof e.phonologicalForm === "string" && e.phonologicalForm.toLowerCase().includes(search.toLowerCase())) ||
         (Array.isArray(e.glosses) && e.glosses.some((g) => typeof g === "string" && g.toLowerCase().includes(search.toLowerCase()))) ||
         (Array.isArray(e.semanticFields) && e.semanticFields.some((f) => typeof f === "string" && f.toLowerCase().includes(search.toLowerCase())));
       const matchPos = posFilter === "all" || e.pos === posFilter;
@@ -238,7 +239,9 @@ export function LexiconView({
                         <span style={{ fontFamily: "var(--mono)", fontSize: 11, opacity: 0.4 }}>
                           {e.phonologicalForm}
                         </span>
-                        <span style={{ fontSize: 12, opacity: 0.7 }}>{e.glosses.join(", ")}</span>
+                        <span style={{ fontSize: 12, opacity: 0.7 }}>
+                          {Array.isArray(e.glosses) ? e.glosses.join(", ") : String(e.glosses || "")}
+                        </span>
                       </div>
                     ))
                   )}
@@ -346,14 +349,18 @@ export function LexiconView({
 
                         <div className="mb16">
                           <div className="muted small mb8" style={{ textTransform: "uppercase", letterSpacing: "0.1em" }}>Glosses</div>
-                          {entry.glosses.map((g, i) => (
+                          {Array.isArray(entry.glosses) ? entry.glosses.map((g, i) => (
                             <div key={i} style={{ fontSize: 13, padding: "3px 0", borderBottom: "1px solid var(--rule)" }}>
                               {i + 1}. {g}
                             </div>
-                          ))}
+                          )) : (
+                            <div style={{ fontSize: 13, padding: "3px 0", borderBottom: "1px solid var(--rule)" }}>
+                              {String(entry.glosses || "")}
+                            </div>
+                          )}
                         </div>
 
-                        {entry.senses && entry.senses.length > 1 && (
+                        {Array.isArray(entry.senses) && entry.senses.length > 1 && (
                           <div className="mb16">
                             <div className="muted small mb8" style={{ textTransform: "uppercase", letterSpacing: "0.1em" }}>Senses</div>
                             {entry.senses.map((s) => (
@@ -368,7 +375,7 @@ export function LexiconView({
                         <div>
                           <div className="muted small mb8" style={{ textTransform: "uppercase", letterSpacing: "0.1em" }}>Semantic Fields</div>
                           <div className="phoneme-chips">
-                            {entry.semanticFields.map((f) => (
+                            {Array.isArray(entry.semanticFields) && entry.semanticFields.map((f) => (
                               <span key={f} className="tag">{f}</span>
                             ))}
                           </div>
