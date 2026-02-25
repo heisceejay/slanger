@@ -200,8 +200,8 @@ export async function llmRoutes(fastify: FastifyInstance): Promise<void> {
       if (!parsed.success) return reply.code(400).send(badRequest(parsed.error.issues[0]?.message ?? "Invalid body", req.id));
       const lang = parsed.data as unknown as LanguageDefinition;
 
-      if ((lang.lexicon?.length ?? 0) < 50) {
-        return reply.code(400).send(badRequest("Lexicon must have at least 50 words before generating corpus. Add more words via the Lexicon view.", req.id));
+      if ((lang.lexicon?.length ?? 0) < 150) {
+        return reply.code(400).send(badRequest("Lexicon must have at least 150 words before generating corpus. Add more words via the Lexicon view.", req.id));
       }
 
       const result = await generateCorpus({

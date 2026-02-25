@@ -19,7 +19,7 @@ export function CorpusView({
 }) {
   const samples = lang.corpus;
   const lexiconSize = lang.lexicon?.length ?? 0;
-  const canGenerateCorpus = lexiconSize >= 50;
+  const canGenerateCorpus = lexiconSize >= 150;
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState("");
   const [prompt, setPrompt] = useState("");
@@ -74,7 +74,7 @@ export function CorpusView({
           <div className="panel-body">
             {!canGenerateCorpus && (
               <div style={{ marginBottom: 16, padding: 12, background: "var(--rule)", borderRadius: 4, fontSize: 12 }}>
-                Add at least 50 words to the lexicon before generating corpus. Current: {lexiconSize} words.
+                Add at least 150 words to the lexicon before generating corpus. Current: {lexiconSize} words.
               </div>
             )}
             <div className="grid-2">
