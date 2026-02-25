@@ -13,7 +13,8 @@
  */
 
 import type { GenerateLexiconRequest, GenerateLexiconResponse } from "../types.js";
-import type { LexicalEntry, PartOfSpeech, LanguageDefinition } from "@slanger/shared-types";
+import type { LexicalEntry, PartOfSpeech, LanguageDefinition, Phonotactics } from "@slanger/shared-types";
+import { validateWordForm } from "@slanger/phonology";
 
 export function buildSystemPrompt(): string {
   return `You are a linguistic expert specializing in constructed language lexicon design.
@@ -189,7 +190,7 @@ RESPOND WITH ONLY valid JSON. No markdown, no preamble.
 IDs: lex_0001, lex_0002, etc. Phonemes only from: ${allowedOnly}. Templates: ${templates}.`.trim();
 }
 
-export function parseResponse(raw: string, startId: number, inventoryPhonemes: string[]): GenerateLexiconResponse {
+export function parseResponse(raw: string, startId: number, inventoryPhonemes: string[], phonotactics: Phonotactics): GenerateLexiconResponse {
   const parsed = JSON.parse(raw) as Partial<GenerateLexiconResponse>;
 
   if (!Array.isArray(parsed.entries)) throw new Error('Response missing "entries" array');
@@ -236,6 +237,17 @@ export function parseResponse(raw: string, startId: number, inventoryPhonemes: s
       if (/[a-zɐ-ʒ]/.test(char) && !allowedSet.has(char)) {
         throw new Error(`Entry ${entry.id} ("${entry.orthographicForm}") uses ILLEGAL symbol /${char}/ in /${entry.phonologicalForm}/. You MUST ONLY use the allowed inventory symbols.`);
       }
+    }
+
+    // Strict fast-fail check for phonotactic structure
+    const phonoResult = validateWordForm(`/${entry.phonologicalForm}/`, phonotactics, {
+      consonants: inventoryPhonemes.filter(p => !/[aeiouyɯɪʊɛɔɑæøœy]/.test(p)), // Approximation for validation
+      vowels: inventoryPhonemes.filter(p => /[aeiouyɯɪʊɛɔɑæøœy]/.test(p)),
+      tones: []
+    });
+    if (!phonoResult.valid) {
+      const errorMsg = phonoResult.issues.map(i => i.message).join("; ");
+      throw new Error(`Entry ${entry.id} ("${entry.orthographicForm}") failed phonotactics: ${errorMsg}`);
     }
   }
 

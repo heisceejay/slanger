@@ -205,7 +205,8 @@ export async function generateLexicon(
       parsed = GenerateLexiconPrompt.parseResponse(
         raw,
         startId,
-        [...baseLanguage.phonology.inventory.consonants, ...baseLanguage.phonology.inventory.vowels]
+        [...baseLanguage.phonology.inventory.consonants, ...baseLanguage.phonology.inventory.vowels],
+        baseLanguage.phonology.phonotactics
       );
     }
     catch (e) {
