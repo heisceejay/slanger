@@ -602,17 +602,16 @@ label {
   color: var(--ink);
 }
 
-.interlinear-gloss {
+.interlinear-morph {
   font-size: 11px;
-  letter-spacing: 0.05em;
-  font-weight: 700;
-  color: var(--ink);
+  opacity: 0.75;
 }
 
-.interlinear-morph {
+.interlinear-gloss {
   font-size: 10px;
-  opacity: 0.5;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
+  opacity: 0.6;
 }
 
 /* ── Validation badge ──────────────────────────────────────── */

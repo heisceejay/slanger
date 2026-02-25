@@ -25,9 +25,18 @@ export function CorpusView({
   const [prompt, setPrompt] = useState("");
   const [count, setCount] = useState(5);
   const [registers, setRegisters] = useState<string[]>(["informal", "formal"]);
-
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
   const allRegisters = ["informal", "formal", "narrative", "ceremonial", "technical"];
+
+  function toggleExpanded(id: string) {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
 
   function toggleRegister(r: string) {
     setRegisters((prev) =>
@@ -148,6 +157,21 @@ export function CorpusView({
                   <span style={{ fontSize: 9, opacity: 0.3 }}>
                     {new Date(s.generatedAt).toLocaleDateString()}
                   </span>
+                  <button
+                    style={{
+                      marginLeft: "auto",
+                      background: "none",
+                      border: "none",
+                      cursor: "pointer",
+                      fontSize: 10,
+                      opacity: 0.4,
+                      fontFamily: "var(--mono)",
+                      letterSpacing: "0.1em",
+                    }}
+                    onClick={() => toggleExpanded(s.id)}
+                  >
+                    {expanded.has(s.id) ? "▲ Hide gloss" : "▼ Show gloss"}
+                  </button>
                 </div>
 
                 {/* Original text & smooth translation */}
@@ -176,13 +200,13 @@ export function CorpusView({
                 )}
 
                 {/* Interlinear gloss breakdown */}
-                {s.interlinearGloss && s.interlinearGloss.length > 0 && (
+                {expanded.has(s.id) && s.interlinearGloss && s.interlinearGloss.length > 0 && (
                   <div className="interlinear" style={{ borderTop: "1px solid var(--rule-heavy)", paddingTop: 16 }}>
                     {s.interlinearGloss.map((w, i) => (
                       <div key={i} className="interlinear-word-group">
                         <div className="interlinear-orth">{w.word}</div>
-                        <div className="interlinear-gloss">{w.glosses.join("-")}</div>
                         <div className="interlinear-morph">{w.morphemes.join("-")}</div>
+                        <div className="interlinear-gloss">{w.glosses.join("-")}</div>
                       </div>
                     ))}
                   </div>
