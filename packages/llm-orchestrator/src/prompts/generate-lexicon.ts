@@ -45,7 +45,9 @@ Generate core vocabulary efficiently. Prioritize Swadesh-style words.`;
 export function buildUserMessage(req: GenerateLexiconRequest, lang: LanguageDefinition, retryErrors?: string[]): string {
   const retryBlock = retryErrors?.length
     ? `\n[PREVIOUS ATTEMPT ERRORS — FIX THESE]\n${retryErrors.map((e, i) => `${i + 1}. ${e}`).join("\n")}
-CRITICAL RETRY INSTRUCTION: If you failed because a word like "not", "or", or "no" used an illegal phoneme (like /ɔ/ or /ɪ/), DO NOT just swap one vowel. INVENT A COMPLETELY NEW, UNRELATED ROOT (e.g. /taka/, /vum/) using only the allowed inventory!\n`
+CRITICAL RETRY INSTRUCTIONS:
+1. ILLEGAL SYMBOL: If a word failed for using an illegal phoneme (like /ɔ/ or /ɪ/), DO NOT just swap one vowel. INVENT A COMPLETELY NEW, UNRELATED ROOT using only the allowed inventory!
+2. MORPHOLOGY / VOWEL HIATUS: If you see a [morphology MORPH_PHN_PHON] error that a Syllable (pattern:V) doesn't match templates (e.g. [CV, CVC]), your root ended in a vowel! When a vowel-suffix attached to it, it created an illegal vowel-only syllable. FIX THIS BY REDESIGNING YOUR ROOT TO END IN A CONSONANT!\n`
     : "";
 
   const consonants = req.phonology.inventory.consonants;
