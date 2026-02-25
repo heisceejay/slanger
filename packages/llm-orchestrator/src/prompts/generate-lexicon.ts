@@ -44,7 +44,8 @@ Generate core vocabulary efficiently. Prioritize Swadesh-style words.`;
 
 export function buildUserMessage(req: GenerateLexiconRequest, lang: LanguageDefinition, retryErrors?: string[]): string {
   const retryBlock = retryErrors?.length
-    ? `\n[PREVIOUS ATTEMPT ERRORS — FIX THESE]\n${retryErrors.map((e, i) => `${i + 1}. ${e}`).join("\n")}\n`
+    ? `\n[PREVIOUS ATTEMPT ERRORS — FIX THESE]\n${retryErrors.map((e, i) => `${i + 1}. ${e}`).join("\n")}
+CRITICAL RETRY INSTRUCTION: If you failed because a word like "not", "or", or "no" used an illegal phoneme (like /ɔ/ or /ɪ/), DO NOT just swap one vowel. INVENT A COMPLETELY NEW, UNRELATED ROOT (e.g. /taka/, /vum/) using only the allowed inventory!\n`
     : "";
 
   const consonants = req.phonology.inventory.consonants;
@@ -118,7 +119,7 @@ Orthography map (IPA→spelling): ${orthSample}
 ALLOWED IPA SYMBOLS ONLY: [ ${allowedOnly} ]
 Do NOT use ɛ, ɔ, ɑ, ɪ, ʊ, ə, æ, ʒ, ʃ, θ, ð, ŋ, or ANY symbol not in the list above.
 Example: if vowels are /a e i o u/, write /kana/ not /kɑnɑ/. If only /p t k/ are stops, do not write /b d g/.
-CRITICAL: Do not spell out English words ("with", "from", "or", "no") if their true IPA uses symbols not in your constrained inventory. Invent a new valid root instead!
+CRITICAL: Do not spell out English words ("with", "from", "or", "no", "not") using their English pronunciation if it requires symbols not in your constrained inventory. INVENT A NEW VALID ROOT INSTEAD! For example, for "not", invent a root like /ma/ or /tusi/ using your allowed phonemes, rather than trying to force /nɔt/ or /nat/!
 
 ═══════════════════════════════════════════
 MORPHOLOGY
