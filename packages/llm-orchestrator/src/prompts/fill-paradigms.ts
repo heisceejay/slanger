@@ -31,6 +31,17 @@ export function buildUserMessage(req: FillParadigmGapsRequest, lang: LanguageDef
   const vowels = req.phonology.inventory.vowels.join(", ");
   const templates = req.phonology.phonotactics.syllableTemplates.join(", ");
 
+  const allowsVowelInitial = req.phonology.phonotactics.syllableTemplates.some(t => {
+    return t.startsWith("V") || t.startsWith("(C)");
+  });
+
+  const vowelInitialWarning = !allowsVowelInitial
+    ? `\nCRITICAL TEMPLATE RULE: Your templates [ ${templates} ] all require a consonant onset!
+- EVERY SINGLE AFFIX MUST contain a consonant to avoid creating vowel-only syllables or vowel hiatus.
+- For example, if you create a suffix "-a" or "-ii", it will fail validation because attaching it to a root like "per" creates "per-a", leaving "a" as a vowel-only syllable which your templates DO NOT ALLOW.
+- Instead, use suffixes like "-ma", "-ti", or "-n" that provide their own onset consonant or attach as a valid coda.`
+    : "";
+
   const existingParadigms = Object.entries(req.morphology.paradigms);
   const paradigmLimit = 15;
   const paradigmSample = existingParadigms.length > paradigmLimit
@@ -43,7 +54,7 @@ Complete the morphological paradigms for this constructed language.
 PHONEME INVENTORY:
 - Consonants: ${consonants}
 - Vowels: ${vowels}
-- Syllable templates: ${templates}
+- Syllable templates: ${templates}${vowelInitialWarning}
 
 MORPHOLOGICAL TYPOLOGY: ${req.morphology.typology}
 
