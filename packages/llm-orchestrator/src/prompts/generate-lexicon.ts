@@ -50,6 +50,21 @@ export function buildUserMessage(req: GenerateLexiconRequest, lang: LanguageDefi
   const templates = req.phonology.phonotactics.syllableTemplates.join(", ");
   const orthSample = Object.entries(req.phonology.orthography).slice(0, 12).map(([p, g]) => `${p}→${g}`).join(", ");
 
+  // Check if any template allows a syllable without an onset consonant (e.g., V, VC, VCC)
+  // A template allows it if it starts with V or (C) or optional onset.
+  // For simplicity, if no template has V as the first required element, we add a strict rule.
+  const allowsVowelInitial = req.phonology.phonotactics.syllableTemplates.some(t => {
+    // Basic heuristic: if it starts with V or (C), it might allow vowel-initial
+    return t.startsWith("V") || t.startsWith("(C)");
+  });
+
+  const vowelInitialWarning = !allowsVowelInitial
+    ? `\nCRITICAL TEMPLATE RULE: Your templates [ ${templates} ] all require a consonant onset!
+- Words MUST NOT start with a vowel (e.g. "an" is illegal because it starts with a vowel).
+- Words MUST NOT contain consecutive vowels (e.g. "rynaa" or "pera" + "a" is illegal because the second vowel forms a syllable without a consonant).
+- If you attach a vowel suffix to a vowel-ending root, it creates consecutive vowels. Choose a root ending in a consonant instead!`
+    : "";
+
   // Extract flat affix samples from paradigms so the model can check root compatibility
   const affixSamples: string[] = [];
   for (const [paradigmKey, paradigm] of Object.entries(lang.morphology.paradigms).slice(0, 4)) {
@@ -92,7 +107,7 @@ PHONOLOGY (STRICT — ZERO EXCEPTIONS)
 ═══════════════════════════════════════════
 Consonants: ${consStr}
 Vowels: ${vowStr}
-Syllable templates: ${templates}
+Syllable templates: ${templates}${vowelInitialWarning}
 Orthography map (IPA→spelling): ${orthSample}
 
 ALLOWED IPA SYMBOLS ONLY: [ ${allowedOnly} ]
