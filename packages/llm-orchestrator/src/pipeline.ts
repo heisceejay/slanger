@@ -30,7 +30,7 @@ import { generateWritingSystem } from "@slanger/phonology";
 
 const LEXICON_BATCH_SIZE = 5;
 const TARGET_LEXICON_SIZE = 50; // require at least 50 words before corpus
-/** Delay between LLM calls to stay within Groq 6000 TPM/min free tier */
+/** Delay between LLM calls to stay within OpenRouter free tier limits */
 const INTER_CALL_DELAY_MS = 12_000; // 12 seconds — allows ~5 calls/min at ~1000-2000 tokens each
 
 export async function runAutonomousPipeline(

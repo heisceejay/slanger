@@ -13,7 +13,7 @@ kill_timeout = "30s"
   NODE_ENV    = "production"
   PORT        = "3001"
   HOST        = "0.0.0.0"
-  GEMINI_MODEL = "gemini-2.0-flash"
+  OPENROUTER_MODEL = "anthropic/claude-3-haiku"
 
 [[services]]
   protocol      = "tcp"
@@ -58,7 +58,7 @@ kill_timeout = "30s"
   memory_mb = 512
 
 # ── Required secrets ────────────────────────────────────────────────────────────
-# flyctl secrets set GEMINI_API_KEY="AIza..."
+# flyctl secrets set OPENROUTER_API_KEY="sk-or-v1-..."
 #
 # Optional (enables Redis-backed rate limiting):
 # flyctl secrets set REDIS_URL="redis://..."

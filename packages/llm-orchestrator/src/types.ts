@@ -26,7 +26,7 @@ export interface LLMOperationResult<T> {
   operation: OperationName;
   /** Attempt number that succeeded (1–3) */
   attempt: number;
-  /** Raw response from Groq before parsing */
+  /** Raw response from LLM before parsing */
   rawResponse: string;
   /** Parsed and validated output */
   data: T;

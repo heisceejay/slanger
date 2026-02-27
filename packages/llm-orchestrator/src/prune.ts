@@ -4,7 +4,7 @@ import type { OperationName } from "./types.js";
 /**
  * Prunes a LanguageDefinition object to remove non-essential large fields
  * based on the operation being performed. This is critical for staying
- * within the 6000 TPM limit of the Groq free tier.
+ * within the 6000 TPM limit of the LLM free tier.
  */
 export function pruneLanguageForOp(
     lang: LanguageDefinition,

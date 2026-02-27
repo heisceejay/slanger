@@ -107,7 +107,7 @@ interface OpenRouterResponse {
   };
 }
 
-interface GroqStreamChunk {
+interface OpenRouterStreamChunk {
   choices: Array<{
     delta: { content?: string; role?: string };
     finish_reason?: string;
@@ -318,7 +318,7 @@ export async function streamingRequest(opts: StreamingRequestOptions): Promise<s
       if (data === "[DONE]") continue;
 
       try {
-        const chunk = JSON.parse(data) as GroqStreamChunk;
+        const chunk = JSON.parse(data) as OpenRouterStreamChunk;
         const delta = chunk.choices?.[0]?.delta?.content;
         if (delta) {
           accumulated += delta;

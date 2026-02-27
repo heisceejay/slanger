@@ -1,10 +1,10 @@
 # Slanger
 
-AI-assisted constructed language (conlang) generator. Design phoneme inventories, morphological paradigms, vocabulary, and corpus samples — powered by the **Groq free API** (Llama 3.1 8B Instant).
+AI-assisted constructed language (conlang) generator. Design phoneme inventories, morphological paradigms, vocabulary, and corpus samples — powered by the **OpenRouter API**.
 
 **Architecture:** Stateless API (Node 22 · Fastify · TypeScript) + React SPA (Vite). Language data lives entirely in browser `sessionStorage` and is cleared when the tab closes. No accounts, no database.
 
-**Stack:** Node 22 · TypeScript · Fastify · Vite · React 18 · **Groq API (Llama)** · Docker · Fly.io
+**Stack:** Node 22 · TypeScript · Fastify · Vite · React 18 · **OpenRouter API** · Docker · Fly.io
 
 ---
 
@@ -13,7 +13,7 @@ AI-assisted constructed language (conlang) generator. Design phoneme inventories
 ```
 slanger/
 ├── packages/
-│   ├── api-gateway/        # Fastify backend — stateless Groq proxy
+│   ├── api-gateway/        # Fastify backend — stateless LLM proxy
 │   ├── frontend/           # React SPA — all data in sessionStorage
 │   ├── llm-orchestrator/   # 6 LLM operations, retry/cache/pipeline
 │   ├── shared-types/       # Language schema (LanguageDefinition)
@@ -34,7 +34,7 @@ slanger/
 ### Prerequisites
 
 - Node 22+  
-- A **Groq API key** (free at [console.groq.com/keys](https://console.groq.com/keys))
+- An **OpenRouter API key** (get one at [openrouter.ai/keys](https://openrouter.ai/keys))
 
 ### Run
 
@@ -47,7 +47,7 @@ npm install
 # 2. Configure the API gateway
 cd packages/api-gateway
 cp .env.example .env
-# Edit .env — set GROQ_API_KEY (free key from Groq)
+# Edit .env — set OPENROUTER_API_KEY (from OpenRouter)
 
 # 3. Start the backend (from repo root)
 cd ../..
@@ -61,19 +61,19 @@ Open http://localhost:5173.
 
 ### Environment variables
 
-Only `GROQ_API_KEY` is required. All others have defaults.
+Only `OPENROUTER_API_KEY` is required. All others have defaults.
 
 | Variable | Required | Default | Description |
 |---|---|---|---|
-| `GROQ_API_KEY` | ✓ | — | Groq API key from [console.groq.com/keys](https://console.groq.com/keys) |
-| `GROQ_MODEL` | — | `llama-3.1-8b-instant` | Model (use instant for free tier; e.g. `llama-3.1-70b-versatile` for higher quality) |
+| `OPENROUTER_API_KEY` | ✓ | — | OpenRouter API key from [openrouter.ai/keys](https://openrouter.ai/keys) |
+| `OPENROUTER_MODEL` | — | `anthropic/claude-3-haiku` | Model (use any OpenRouter model id) |
 | `PORT` | — | `3001` | API server port |
 | `REDIS_URL` | — | _(none)_ | If set, rate limiting uses Redis; otherwise in-memory |
 | `RATE_LIMIT_MAX` | — | `100` | Max requests per time window per IP |
 | `RATE_LIMIT_WINDOW_MS` | — | `60000` | Rate limit window in ms |
 | `NODE_ENV` | — | `development` | Set to `production` for prod |
 
-**Groq free tier:** Llama 3.1 8B Instant is free and fast. No credit card required. Get your key at [console.groq.com/keys](https://console.groq.com/keys).
+**OpenRouter API:** Get your key at [openrouter.ai/keys](https://openrouter.ai/keys).
 
 ---
 
@@ -102,7 +102,7 @@ cd packages/llm-orchestrator && npm test      # LLM operation tests (mocked, no 
 docker compose -f docker/docker-compose.prod.yml build
 
 # Set secrets
-export GROQ_API_KEY="gsk_..."
+export OPENROUTER_API_KEY="sk-or-v1-..."
 
 # Start
 docker compose -f docker/docker-compose.prod.yml up -d
@@ -120,7 +120,7 @@ The compose file starts:
 flyctl launch --no-deploy
 
 # Set required secret
-flyctl secrets set GROQ_API_KEY="gsk_..."
+flyctl secrets set OPENROUTER_API_KEY="sk-or-v1-..."
 
 # Optional: Redis-backed rate limiting
 flyctl secrets set REDIS_URL="redis://..."
@@ -148,21 +148,21 @@ All LLM routes are `POST` and expect a full `LanguageDefinition` in the request 
 | `POST /v1/check-consistency` | Audits cross-module linguistic consistency |
 | `POST /v1/autonomous` | SSE stream: runs all 5 pipeline steps in sequence |
 | `GET  /health` | Liveness check |
-| `GET  /health/ready` | Readiness check (Groq key configured) |
+| `GET  /health/ready` | Readiness check (OpenRouter key configured) |
 | `GET  /docs` | OpenAPI/Swagger UI |
 
 ---
 
 ## LLM orchestration
 
-`llm-orchestrator` wraps all Groq (Llama) API calls:
+`llm-orchestrator` wraps all OpenRouter API calls:
 
 - **Validation-gated retry** — each operation runs up to 3 attempts; failed validation produces a structured error message injected into the next attempt's prompt
 - **In-memory response cache** — identical requests skip the LLM entirely; TTLs from 5 min (corpus) to 30 days (explain-rule)
 - **Streaming** — corpus generation streams SSE tokens to the client in real time
 - **Autonomous pipeline** — chains all 5 ops in dependency order, emitting SSE progress events throughout
 
-**Model:** Default is `llama-3.1-8b-instant` (Groq free tier, fast). Set `GROQ_MODEL` to e.g. `llama-3.1-70b-versatile` for higher quality (subject to Groq rate limits).
+**Model:** Default is `anthropic/claude-3-haiku`. Set `OPENROUTER_MODEL` to your preferred model string (e.g. `openai/gpt-4o-mini`).
 
 ---
 
