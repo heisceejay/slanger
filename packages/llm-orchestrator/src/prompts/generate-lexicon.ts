@@ -49,7 +49,7 @@ export function buildUserMessage(req: GenerateLexiconRequest, lang: LanguageDefi
     ? `\n[PREVIOUS ATTEMPT ERRORS — FIX THESE]\n${retryErrors.map((e, i) => `${i + 1}. ${e}`).join("\n")}
 CRITICAL RETRY INSTRUCTIONS:
 1. ILLEGAL SYMBOL OR CALQUE: If a word failed for using an illegal phoneme (like /ɔ/ or /ɪ/), OR failed phonotactics, you likely tried to copy an English word like "so", "or", "no", "yes", or "not". DO NOT JUST SWAP ONE VOWEL. You MUST invent a COMPLETELY NEW, unrelated spelling (e.g. /taka/, /vum/, /pali/) using only the allowed inventory!
-2. MORPHOLOGY / VOWEL HIATUS: If you see a [morphology MORPH_PHN_PHON] error that a Syllable (pattern:V) doesn't match templates (e.g. [CV, CVC]), your root ended in a vowel! When a vowel-suffix attached to it, it created an illegal vowel-only syllable. FIX THIS BY REDESIGNING YOUR ROOT TO END IN A CONSONANT!\n`
+2. MORPHOLOGY ERRORS [MORPH_PHN_PHON]: If a word failed when combined with an affix (e.g. "tamann" or "panunn"), the root itself is the problem. Your root + that affix created an illegal syllable pattern (like CVCC) or an illegal cluster (like /nn/). REDESIGN THE ROOT to be simpler or end in a different phoneme so it stays valid even when suffixes are added!\n`
     : "";
 
   const consonants = req.phonology.inventory.consonants;
@@ -77,15 +77,13 @@ CRITICAL RETRY INSTRUCTIONS:
 
   // Extract flat affix samples from paradigms so the model can check root compatibility
   const affixSamples: string[] = [];
-  for (const [paradigmKey, paradigm] of Object.entries(lang.morphology.paradigms).slice(0, 4)) {
-    const rows = (paradigm as Record<string, unknown>)?.rows;
-    if (Array.isArray(rows)) {
-      for (const row of (rows as Record<string, unknown>[]).slice(0, 3)) {
-        const suffix = row?.suffix ?? row?.affix ?? row?.form;
-        const label = row?.label ?? row?.gloss ?? paradigmKey;
-        if (typeof suffix === "string" && suffix.trim()) {
-          affixSamples.push(`"${suffix}" (${String(label)})`);
+  for (const [paradigmKey, cells] of Object.entries(lang.morphology.paradigms).slice(0, 4)) {
+    if (typeof cells === "object" && cells !== null) {
+      for (const [featureVal, affix] of Object.entries(cells).slice(0, 3)) {
+        if (typeof affix === "string" && affix.trim()) {
+          affixSamples.push(`"${affix}" (${featureVal})`);
         }
+        if (affixSamples.length >= 8) break;
       }
     }
     if (affixSamples.length >= 8) break;

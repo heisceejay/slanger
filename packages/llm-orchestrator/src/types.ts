@@ -220,6 +220,8 @@ export interface AutonomousPipelineRequest {
   complexity: number; // 0–1
   /** Optional seed for reproducibility (passed as system context) */
   seed?: string;
+  /** Delay between steps in ms (overrides default 12s) */
+  interCallDelayMs?: number;
   /** Phase toggles for advanced features */
   advancedFeatures?: {
     templaticMorphology: boolean;

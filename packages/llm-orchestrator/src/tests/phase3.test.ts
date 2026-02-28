@@ -93,14 +93,14 @@ function mockLlmError(status: number, message: string): FetchFn {
 function mockPhonologyResponse() {
   return {
     phonology: {
-      inventory: { consonants: ["t", "n", "k", "s", "m", "l"], vowels: ["a", "e", "i", "o", "u"], tones: [] },
+      inventory: { consonants: ["t", "n", "k", "s", "m", "l", "r"], vowels: ["a", "e", "i", "o", "u"], tones: [] },
       phonotactics: {
         syllableTemplates: ["CV", "CVC", "V", "VC"],
         onsetClusters: [],
         codaClusters: [],
         allophonyRules: [],
       },
-      orthography: { t: "t", n: "n", k: "k", s: "s", m: "m", l: "l", a: "a", e: "e", i: "i", o: "o", u: "u" },
+      orthography: { t: "t", n: "n", k: "k", s: "s", m: "m", l: "l", r: "r", a: "a", e: "e", i: "i", o: "o", u: "u" },
       suprasegmentals: {
         hasLexicalTone: false,
         hasPhonemicStress: false,
@@ -147,8 +147,19 @@ function mockMorphologyResponse() {
 function mockLexiconResponse(startId = 1, count = 5) {
   const entries = [];
   // Only valid CV/CVC words using mock inventory (t,n,k,s,m,l + a,e,i,o,u)
-  const cvSyllables = ["ta", "na", "ke", "lu", "mi", "so", "no", "ka", "se", "tu", "li", "mu", "ko", "si", "te", "nu", "lo", "ma", "ki", "su", "to", "ni", "le", "mo", "sa", "ku", "ti", "ne", "la", "me"];
-  const cvcSyllables = ["tan", "nak", "kel", "lus", "min", "son", "nom", "kan", "sem", "tuk", "lis", "muk", "kon", "sin", "tem", "nut", "los", "mak", "kis", "sul", "tom", "nil", "lek", "mol", "sal", "kun", "til", "nen", "las", "mel"];
+  const cvSyllables = [
+    "ta", "te", "ti", "to", "tu",
+    "na", "ne", "ni", "no", "nu",
+    "ka", "ke", "ki", "ko", "ku",
+    "sa", "se", "si", "so", "su",
+    "ma", "me", "mi", "mo", "mu",
+    "la", "le", "li", "lo", "lu",
+    "ra", "re", "ri", "ro", "ru"
+  ];
+  const cvcSyllables = [
+    "tan", "nak", "kel", "lus", "min", "son", "nom", "kan", "sem", "tuk", "lis", "muk", "kon", "sin", "tem", "nut", "los", "mak", "kis", "sul", "tom", "nil", "lek", "mol", "sal", "kun", "til", "nen", "las", "mel",
+    "ran", "rek", "ril", "ros", "rum"
+  ];
   const glosses = ["stone", "go", "big", "I", "one", "not", "water", "see", "small", "you", "two", "and", "fire", "come", "good", "we", "three", "but", "tree", "give", "bad", "they", "four", "or", "sun", "take", "long", "he", "five", "yes", "moon", "eat", "short", "she", "ten", "no", "sky", "drink", "hot", "it", "name", "word", "path", "food", "bird", "fish", "dog", "head", "eye", "ear", "mouth", "hand", "foot", "heart", "blood", "bone", "skin", "hair", "wind", "rain", "night", "day", "year", "house", "animal"];
   const poss: Array<[string, string, string]> = [
     ["noun", "swadesh-core", "nature"], ["verb", "swadesh-core", "motion"], ["adjective", "swadesh-core", "size"],
@@ -642,16 +653,17 @@ await test("Pipeline chains all 5 steps and returns a LanguageDefinition", async
     preset: "naturalistic",
     naturalismScore: 0.7,
     complexity: 0.5,
+    interCallDelayMs: 0,
   }, (event) => {
     events.push(event.type);
   });
 
   ok(result.language.meta.name === "Testlang");
-  ok(result.stepsCompleted.includes("suggest_phoneme_inventory"));
-  ok(result.stepsCompleted.includes("fill_paradigm_gaps"));
-  ok(result.stepsCompleted.includes("generate_lexicon"));
-  ok(result.stepsCompleted.includes("generate_corpus"));
-  ok(result.stepsCompleted.includes("check_consistency"));
+  ok(result.stepsCompleted.includes("suggest_phoneme_inventory"), "missing suggest_phoneme_inventory");
+  ok(result.stepsCompleted.includes("fill_paradigm_gaps"), "missing fill_paradigm_gaps");
+  ok(result.stepsCompleted.includes("generate_lexicon"), "missing generate_lexicon");
+  ok(result.stepsCompleted.includes("generate_corpus"), "missing generate_corpus");
+  ok(result.stepsCompleted.includes("check_consistency"), "missing check_consistency");
   ok(events.includes("pipeline_progress"), "Expected pipeline_progress events");
   ok(events.includes("operation_complete"), "Expected operation_complete events");
   ok(events.includes("pipeline_complete"), "Expected pipeline_complete event");

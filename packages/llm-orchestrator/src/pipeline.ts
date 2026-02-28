@@ -97,7 +97,7 @@ export async function runAutonomousPipeline(
     onEvent({ type: "operation_complete", result: morphResult });
 
     // Rate-limit pause before next LLM call
-    await sleep(INTER_CALL_DELAY_MS);
+    await sleep(req.interCallDelayMs ?? INTER_CALL_DELAY_MS);
 
     // ── Step 3: Lexicon (batched) ──────────────────────────────────────────────
     onEvent({ type: "pipeline_progress", step: 3, totalSteps: TOTAL_STEPS, stepName: `Generating vocabulary (target: ${TARGET_LEXICON_SIZE} words)` });
@@ -142,7 +142,7 @@ export async function runAutonomousPipeline(
       if (batchNum >= 15) { lexiconDone = true; break; }
 
       // Rate-limit pause between lexicon batches
-      await sleep(INTER_CALL_DELAY_MS);
+      await sleep(req.interCallDelayMs ?? INTER_CALL_DELAY_MS);
     }
 
     // ── Step 5: Corpus (only if we have at least 50 words) ─────────────────────
@@ -150,7 +150,7 @@ export async function runAutonomousPipeline(
     if (language.lexicon.length >= 50) {
       corpusRan = true;
       // Rate-limit pause before corpus generation
-      await sleep(INTER_CALL_DELAY_MS);
+      await sleep(req.interCallDelayMs ?? INTER_CALL_DELAY_MS);
       onEvent({ type: "pipeline_progress", step: 4, totalSteps: TOTAL_STEPS, stepName: "Generating corpus samples" });
 
       const corpusResult = await generateCorpus({
@@ -170,7 +170,7 @@ export async function runAutonomousPipeline(
     }
 
     // Rate-limit pause before consistency check
-    await sleep(INTER_CALL_DELAY_MS);
+    await sleep(req.interCallDelayMs ?? INTER_CALL_DELAY_MS);
 
     // ── Step 5: Consistency check ──────────────────────────────────────────────
     onEvent({ type: "pipeline_progress", step: 5, totalSteps: TOTAL_STEPS, stepName: "Running linguistic consistency audit" });
