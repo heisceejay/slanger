@@ -75,7 +75,7 @@ Respond with ONLY this JSON structure (no text outside JSON):
       "tones": []
     },
     "phonotactics": {
-      "syllableTemplates": ["CV", "CVC"],
+      "syllableTemplates": ["CV", "CV(C)", "V(C)"],
       "onsetClusters": [],
       "codaClusters": [],
       "allophonyRules": []

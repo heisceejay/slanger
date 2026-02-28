@@ -51,7 +51,7 @@ CRITICAL RETRY INSTRUCTIONS:
 1. ILLEGAL SYMBOL OR CALQUE: If a word failed for using an illegal phoneme (like /ɔ/ or /ɪ/), OR failed phonotactics, you likely tried to copy an English word like "so", "or", "no", "yes", or "not". DO NOT JUST SWAP ONE VOWEL. You MUST invent a COMPLETELY NEW, unrelated spelling (e.g. /taka/, /vum/, /pali/) using only the allowed inventory!
 2. MORPHOLOGY ERRORS [MORPH_PHN_PHON]: If a word failed when combined with an affix (e.g. "manua" or "tamai"), the root itself is the problem.
    - If the error says "Syllable 'a' (pattern:V) doesn't match", it means you have two vowels in a row (hiatus).
-   - FIX: Redesign the root to end in a CONSONANT (e.g. change "manu" to "manut") so that + "-a" becomes "manuta" (CV-CV-CV), which is valid!\n`
+   - FIX: Redesign the root to end in a CONSONANT (e.g. change "manu" to "manut") so that + "-a" becomes "manuta", which is valid CV-CV-CV!\n`
     : "";
 
   const consonants = req.phonology.inventory.consonants;
@@ -63,10 +63,7 @@ CRITICAL RETRY INSTRUCTIONS:
   const orthSample = Object.entries(req.phonology.orthography).slice(0, 12).map(([p, g]) => `${p}→${g}`).join(", ");
 
   // Check if any template allows a syllable without an onset consonant (e.g., V, VC, VCC)
-  // A template allows it if it starts with V or (C) or optional onset.
-  // For simplicity, if no template has V as the first required element, we add a strict rule.
   const allowsVowelInitial = req.phonology.phonotactics.syllableTemplates.some(t => {
-    // Basic heuristic: if it starts with V or (C), it might allow vowel-initial
     return t.startsWith("V") || t.startsWith("(C)");
   });
 
@@ -75,14 +72,14 @@ CRITICAL RETRY INSTRUCTIONS:
 - EVERY VOWEL phoneme forms its own syllable.
 - Your templates [ ${templates} ] all require a CONSONANT ONSET.
 - This means: NO consecutive vowels (e.g. "aa" is NOT a long vowel, it is two 'V' syllables, which is ILLEGAL).
-- If you attach a vowel suffix to a vowel-ending root, it creates an illegal 'V' syllable. You MUST use a root ending in a consonant instead!`
+- Roots MUST end in a consonant if you have vowel-initial affixes below!`
     : "";
 
   // Extract flat affix samples from paradigms so the model can check root compatibility
   const affixSamples: string[] = [];
   for (const [paradigmKey, cells] of Object.entries(lang.morphology.paradigms).slice(0, 4)) {
     if (typeof cells === "object" && cells !== null) {
-      for (const [featureVal, affix] of Object.entries(cells).slice(0, 3)) {
+      for (const [featureVal, affix] of Object.entries((cells as Record<string, string>)).slice(0, 3)) {
         if (typeof affix === "string" && affix.trim()) {
           affixSamples.push(`"${affix}" (${featureVal})`);
         }
@@ -95,15 +92,22 @@ CRITICAL RETRY INSTRUCTIONS:
     ? `\nCOMMON AFFIXES (roots MUST be compatible with these):\n${affixSamples.join(", ")}`
     : "";
 
+  const firstAffix = affixSamples[0] || "";
+  const sampleAffixMatch = firstAffix.match(/"([^"]+)"/);
+  const sampleAffix = (sampleAffixMatch ? sampleAffixMatch[1] : null) || "-a";
+
   const morphemeOrderStr = lang.morphology.morphemeOrder?.join(" → ") ?? "root";
 
   const slotsBlock = req.targetSlots
     .slice(0, req.batchSize)
-    .map(s => `  - "${s.slot}" (${s.pos}${s.subcategory ? ", subcategory: " + s.subcategory : ""}, field: ${s.semanticField})`)
+    .map(s => {
+      if (!s) return "";
+      return `  - "${s.slot}" (${s.pos}${s.subcategory ? ", subcategory: " + s.subcategory : ""}, field: ${s.semanticField})`;
+    })
     .join("\n");
 
   const existingBlock = req.existingOrthForms.length
-    ? `\nAVOID THESE EXISTING FORMS (no homophones or near-homophones):\n${req.existingOrthForms.slice(0, 15).join(", ")}`
+    ? `\nAVOID THESE EXISTING FORMS:\n${req.existingOrthForms.slice(0, 15).join(", ")}`
     : "";
 
   const worldNote = lang.meta.world
@@ -114,7 +118,7 @@ CRITICAL RETRY INSTRUCTIONS:
 Generate ${req.batchSize} lexical entries for a constructed language.
 
 ═══════════════════════════════════════════
-PHONOLOGY (STRICT — ZERO EXCEPTIONS)
+PHONOLOGY REQUIREMENTS
 ═══════════════════════════════════════════
 Consonants: ${consStr}
 Vowels: ${vowStr}
@@ -134,27 +138,12 @@ Morpheme order: ${morphemeOrderStr}
 ${lang.morphology.categories ? `Inflectional categories: ${JSON.stringify(lang.morphology.categories).slice(0, 300)}` : ""}
 ${affixBlock}
 
-ROOT COMPATIBILITY CHECK EXAMPLE:
-If suffixes are "-a" and templates are [CV, CVC]:
-  1. Try root "manu" (ma.nu). Root alone is valid.
-  2. Combine with "-a" → "manua".
-  3. Syllabify "manua" → ma (CV) + nu (CV) + a (V).
-  4. ERROR: "a" (V) is not allowed in [CV, CVC]. "manu" is an INVALID root.
-  5. Try root "manut" (ma.nut). Combined → "manuta" (ma.nu.ta, all CV). VALID!
-
-ROOT COMPATIBILITY REQUIREMENT:
-For each root you generate, verify:
-  (a) ROOT alone → uses only [ ${allowedOnly} ] and fits template(s): ${templates}
-  (b) ROOT + each affix above → still uses only [ ${allowedOnly} ] and fits template(s): ${templates}
-  If any combination fails, choose a different root shape.
-${lang.morphology.templatic?.enabled
-      ? `
-TEMPLATIC MORPHOLOGY ENABLED:
-- Roots are NOT whole words — they are bare consonant sequences (e.g. "k-t-b").
-- 'phonologicalForm' MUST be those consonants (e.g. "/k-t-b/").
-- 'orthographicForm' is the orthographic rendering of that consonant sequence.
-- Root must have exactly ${lang.morphology.templatic.rootTemplates?.[0]?.replace(/[^C]/g, "").length ?? 3} consonants.`
-      : ""}
+EXAMPLE OF ROOT COMPATIBILITY CHECK:
+If templates are [ ${templates} ] and common suffixes include "${sampleAffix}":
+  1. Pick a root like "tani".
+  2. Check "tani" + "${sampleAffix.replace(/^-/, "")}" → "tani${sampleAffix.replace(/^-/, "")}".
+  3. Syllabify the result. Does every syllable match one of [ ${templates} ]?
+  4. If NOT (e.g. if it creates a V pattern but only CV is allowed), choose a root ending in a different phoneme.
 
 ═══════════════════════════════════════════
 CONTEXT & SEMANTICS
@@ -168,6 +157,20 @@ ${existingBlock}
 SEMANTIC SLOTS TO FILL
 ═══════════════════════════════════════════
 ${slotsBlock}
+
+MANDATORY STRATEGY:
+1. For each entry, design a root that fits the templates.
+2. MENTALLY ATTACH THE COMMON AFFIXES listed above.
+3. If the combined word violates phonotactics (even if the root alone is fine), DISCARD THE ROOT and pick an alternative.
+4. Use 'phonologicalNotes' to briefly show your compatibility check for any 3 of the words you generated.
+${lang.morphology.templatic?.enabled
+      ? `
+TEMPLATIC MORPHOLOGY ENABLED:
+- Roots are NOT whole words — they are bare consonant sequences (e.g. "k-t-b").
+- 'phonologicalForm' MUST be those consonants (e.g. "/k-t-b/").
+- 'orthographicForm' is the orthographic rendering of that consonant sequence.
+- Root must have exactly ${lang.morphology.templatic.rootTemplates?.[0]?.replace(/[^C]/g, "").length ?? 3} consonants.`
+      : ""}
 
 STEPS for each entry:
 1. Pick a root shape compatible with inventory and templates.
@@ -193,7 +196,7 @@ Respond with ONLY this JSON:
       "source": "generated"
     }
   ],
-  "phonologicalNotes": "<brief note on root shapes chosen and affix compatibility verified>"
+  "phonologicalNotes": "<brief note on root shapes chosen and affix compatibility verified (show work for 3 entries)>"
 }
 
 RESPOND WITH ONLY valid JSON. No markdown, no preamble.
