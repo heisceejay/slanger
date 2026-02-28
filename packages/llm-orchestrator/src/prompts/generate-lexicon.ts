@@ -49,7 +49,9 @@ export function buildUserMessage(req: GenerateLexiconRequest, lang: LanguageDefi
     ? `\n[PREVIOUS ATTEMPT ERRORS — FIX THESE]\n${retryErrors.map((e, i) => `${i + 1}. ${e}`).join("\n")}
 CRITICAL RETRY INSTRUCTIONS:
 1. ILLEGAL SYMBOL OR CALQUE: If a word failed for using an illegal phoneme (like /ɔ/ or /ɪ/), OR failed phonotactics, you likely tried to copy an English word like "so", "or", "no", "yes", or "not". DO NOT JUST SWAP ONE VOWEL. You MUST invent a COMPLETELY NEW, unrelated spelling (e.g. /taka/, /vum/, /pali/) using only the allowed inventory!
-2. MORPHOLOGY ERRORS [MORPH_PHN_PHON]: If a word failed when combined with an affix (e.g. "tamann" or "panunn"), the root itself is the problem. Your root + that affix created an illegal syllable pattern (like CVCC) or an illegal cluster (like /nn/). REDESIGN THE ROOT to be simpler or end in a different phoneme so it stays valid even when suffixes are added!\n`
+2. MORPHOLOGY ERRORS [MORPH_PHN_PHON]: If a word failed when combined with an affix (e.g. "manua" or "tamai"), the root itself is the problem.
+   - If the error says "Syllable 'a' (pattern:V) doesn't match", it means you have two vowels in a row (hiatus).
+   - FIX: Redesign the root to end in a CONSONANT (e.g. change "manu" to "manut") so that + "-a" becomes "manuta" (CV-CV-CV), which is valid!\n`
     : "";
 
   const consonants = req.phonology.inventory.consonants;
@@ -69,10 +71,11 @@ CRITICAL RETRY INSTRUCTIONS:
   });
 
   const vowelInitialWarning = !allowsVowelInitial
-    ? `\nCRITICAL TEMPLATE RULE: Your templates [ ${templates} ] all require a consonant onset!
-- Words MUST NOT start with a vowel (e.g. "an" is illegal because it starts with a vowel).
-- Words MUST NOT contain consecutive vowels (e.g. "rynaa" or "pera" + "a" is illegal because the second vowel forms a syllable without a consonant).
-- If you attach a vowel suffix to a vowel-ending root, it creates consecutive vowels. Choose a root ending in a consonant instead!`
+    ? `\nCRITICAL SYLLABIFICATION RULE:
+- EVERY VOWEL phoneme forms its own syllable.
+- Your templates [ ${templates} ] all require a CONSONANT ONSET.
+- This means: NO consecutive vowels (e.g. "aa" is NOT a long vowel, it is two 'V' syllables, which is ILLEGAL).
+- If you attach a vowel suffix to a vowel-ending root, it creates an illegal 'V' syllable. You MUST use a root ending in a consonant instead!`
     : "";
 
   // Extract flat affix samples from paradigms so the model can check root compatibility
@@ -89,7 +92,7 @@ CRITICAL RETRY INSTRUCTIONS:
     if (affixSamples.length >= 8) break;
   }
   const affixBlock = affixSamples.length
-    ? `\nCOMMON AFFIXES (roots must remain phonotactically valid when these are attached):\n${affixSamples.join(", ")}`
+    ? `\nCOMMON AFFIXES (roots MUST be compatible with these):\n${affixSamples.join(", ")}`
     : "";
 
   const morphemeOrderStr = lang.morphology.morphemeOrder?.join(" → ") ?? "root";
@@ -124,12 +127,20 @@ Example: if vowels are /a e i o u/, write /kana/ not /kɑnɑ/. If only /p t k/ a
 CRITICAL: Do not spell out English words ("with", "from", "or", "no", "not", "so", "yes") using their English pronunciation! INVENT A NEW VALID ROOT INSTEAD! For example, for "so", "not", or "yes", invent a root like /ma/, /pali/, or /tusi/ using your allowed phonemes, rather than trying to force /sɔ/, /ur/, or /es/!
 
 ═══════════════════════════════════════════
-MORPHOLOGY
+MORPHOLOGY & COMPATIBILITY
 ═══════════════════════════════════════════
 Typology: ${lang.morphology.typology}
 Morpheme order: ${morphemeOrderStr}
 ${lang.morphology.categories ? `Inflectional categories: ${JSON.stringify(lang.morphology.categories).slice(0, 300)}` : ""}
 ${affixBlock}
+
+ROOT COMPATIBILITY CHECK EXAMPLE:
+If suffixes are "-a" and templates are [CV, CVC]:
+  1. Try root "manu" (ma.nu). Root alone is valid.
+  2. Combine with "-a" → "manua".
+  3. Syllabify "manua" → ma (CV) + nu (CV) + a (V).
+  4. ERROR: "a" (V) is not allowed in [CV, CVC]. "manu" is an INVALID root.
+  5. Try root "manut" (ma.nut). Combined → "manuta" (ma.nu.ta, all CV). VALID!
 
 ROOT COMPATIBILITY REQUIREMENT:
 For each root you generate, verify:
@@ -146,7 +157,7 @@ TEMPLATIC MORPHOLOGY ENABLED:
       : ""}
 
 ═══════════════════════════════════════════
-CONTEXT
+CONTEXT & SEMANTICS
 ═══════════════════════════════════════════
 Naturalism score: ${req.naturalismScore.toFixed(2)} (0=experimental, 1=naturalistic — higher means more regular, predictable phonology)
 Tags: ${req.tags.join(", ") || "none"}
@@ -154,14 +165,14 @@ ${worldNote}
 ${existingBlock}
 
 ═══════════════════════════════════════════
-SEMANTIC SLOTS TO FILL (one entry per slot)
+SEMANTIC SLOTS TO FILL
 ═══════════════════════════════════════════
 ${slotsBlock}
 
 STEPS for each entry:
 1. Pick a root shape compatible with inventory and templates.
-2. Run the ROOT COMPATIBILITY CHECK (attach common affixes, verify still valid).
-3. Map each IPA phoneme through the orthography map to get the orthographic form.
+2. Run the ROOT COMPATIBILITY CHECK (as shown in the example above).
+3. If valid, map to orthography.
 
 Respond with ONLY this JSON:
 {
