@@ -16,7 +16,11 @@ import type { GenerateLexiconRequest, GenerateLexiconResponse } from "../types.j
 import type { LexicalEntry, PartOfSpeech, LanguageDefinition, Phonotactics } from "@slanger/shared-types";
 import { validateWordForm } from "@slanger/phonology";
 
-export function buildSystemPrompt(): string {
+export function buildSystemPrompt(inventory?: { consonants: string[], vowels: string[] }): string {
+  const samples = inventory ? pickSampleRoots(inventory, 2) : ["CVC", "CV.CV"];
+  const sample1 = samples[0] || "CVC";
+  const sample2 = samples[1] || "CV.CV";
+
   return `You are a linguistic expert specializing in constructed language lexicon design.
 
 You generate vocabulary for constructed languages. Each word must:
@@ -38,17 +42,38 @@ MORPHOLOGICAL COMPATIBILITY CHECK (mandatory for every entry):
 WARNING ABOUT ENGLISH CALQUES (VERY STRICT!):
 - Do NOT provide English words disguised with IPA (e.g. "with", "from", "to", "or", "no", "so", "not", "yes").
 - Functional/grammar words MUST BE COMPLETELY INVENTED ROOTS.
-- If your word looks or sounds like the English translation (e.g. /sɔ/ for "so", /ur/ for "or", /nɔt/ for "not", /es/ or /jɛs/ for "yes"), IT WILL FAIL.
-- Instead, invent roots that look totally different (e.g., /tasi/ for "so", /vum/ for "or", /kana/ for "not", /zivu/ for "yes").
+- If your word looks or sounds like the English translation (e.g. /sɔ/ for "so", /ur/ for "or", /nɔt/ for "not"), IT WILL FAIL.
+- Instead, invent roots that look totally different (e.g., /${sample1}/ for "so", /${sample2}/ for "or").
 
-Generate core vocabulary efficiently. Prioritize Swadesh-style words.`;
+CRITICAL: The phonemes used in the examples above (like /${sample1}/) are ONLY illustrations. You MUST substitute them with phonemes from YOUR SPECIFIC INVENTORY provided in the user message.`;
+}
+
+/** Helper to generate a few safe sample roots from an inventory for use in prompt examples */
+function pickSampleRoots(inventory: { consonants: string[], vowels: string[] }, count: number = 2): string[] {
+  const c = inventory.consonants;
+  const v = inventory.vowels;
+  if (!c.length || !v.length) return ["CVC", "CVCV"];
+  const samples: string[] = [];
+  for (let i = 0; i < count; i++) {
+    const c1 = c[i % c.length];
+    const v1 = v[i % v.length];
+    const c2 = c[(i + 1) % c.length];
+    const v2 = v[(i + 1) % v.length];
+    samples.push(`${c1}${v1}${c2}${v2}`);
+  }
+  return samples;
 }
 
 export function buildUserMessage(req: GenerateLexiconRequest, lang: LanguageDefinition, retryErrors?: string[]): string {
+  const samples = pickSampleRoots(req.phonology.inventory, 3);
+  const sample1 = samples[0] || "CVC";
+  const sample2 = samples[1] || "CVCV";
+  const sample3 = samples[2] || "VCV";
+
   const retryBlock = retryErrors?.length
     ? `\n[PREVIOUS ATTEMPT ERRORS — FIX THESE]\n${retryErrors.map((e, i) => `${i + 1}. ${e}`).join("\n")}
 CRITICAL RETRY INSTRUCTIONS:
-1. ILLEGAL SYMBOL OR CALQUE: If a word failed for using an illegal phoneme (like /ɔ/ or /ɪ/), OR failed phonotactics, you likely tried to copy an English word like "so", "or", "no", "yes", or "not". DO NOT JUST SWAP ONE VOWEL. You MUST invent a COMPLETELY NEW, unrelated spelling (e.g. /taka/, /vum/, /pali/) using only the allowed inventory!
+1. ILLEGAL SYMBOL OR CALQUE: If a word failed for using an illegal phoneme (like /ɔ/ or /ɪ/), OR failed phonotactics, you likely tried to copy an English word like "so", "or", "no", "yes", or "not". DO NOT JUST SWAP ONE VOWEL. You MUST invent a COMPLETELY NEW, unrelated spelling (e.g. /${sample1}/, /${sample2}/, /${sample3}/) using ONLY your allowed inventory!
 2. MORPHOLOGY ERRORS [MORPH_PHN_PHON]: If a word failed when combined with an affix (e.g. "manua" or "tamai"), the root itself is the problem.
    - If the error says "Syllable 'a' (pattern:V) doesn't match", it means you have two vowels in a row (hiatus).
    - FIX: Redesign the root to end in a CONSONANT (e.g. change "manu" to "manut") so that + "-a" becomes "manuta", which is valid CV-CV-CV!\n`
@@ -126,9 +151,9 @@ Syllable templates: ${templates}${vowelInitialWarning}
 Orthography map (IPA→spelling): ${orthSample}
 
 ALLOWED IPA SYMBOLS ONLY: [ ${allowedOnly} ]
-Do NOT use ɛ, ɔ, ɑ, ɪ, ʊ, ə, æ, ʒ, ʃ, θ, ð, ŋ, or ANY symbol not in the list above.
+(CRITICAL: Do NOT use ANY symbol not in the square brackets above. Even if an example below uses a symbol, ignore my example and use YOUR inventory.)
 Example: if vowels are /a e i o u/, write /kana/ not /kɑnɑ/. If only /p t k/ are stops, do not write /b d g/.
-CRITICAL: Do not spell out English words ("with", "from", "or", "no", "not", "so", "yes") using their English pronunciation! INVENT A NEW VALID ROOT INSTEAD! For example, for "so", "not", or "yes", invent a root like /ma/, /pali/, or /tusi/ using your allowed phonemes, rather than trying to force /sɔ/, /ur/, or /es/!
+CRITICAL: Do not spell out English words ("with", "from", "or", "no", "not", "so", "yes") using their English pronunciation! INVENT A NEW VALID ROOT INSTEAD! For example, for "so", "not", or "yes", invent a root like /${sample1}/, /${sample2}/, or /${sample3}/ using your allowed phonemes, rather than trying to force /sɔ/, /ur/, or /es/!
 
 ═══════════════════════════════════════════
 MORPHOLOGY & COMPATIBILITY
@@ -140,8 +165,8 @@ ${affixBlock}
 
 EXAMPLE OF ROOT COMPATIBILITY CHECK:
 If templates are [ ${templates} ] and common suffixes include "${sampleAffix}":
-  1. Pick a root like "tani".
-  2. Check "tani" + "${sampleAffix.replace(/^-/, "")}" → "tani${sampleAffix.replace(/^-/, "")}".
+  1. Pick a root like "${sample1}".
+  2. Check "${sample1}" + "${sampleAffix.replace(/^-/, "")}" → "${sample1}${sampleAffix.replace(/^-/, "")}".
   3. Syllabify the result. Does every syllable match one of [ ${templates} ]?
   4. If NOT (e.g. if it creates a V pattern but only CV is allowed), choose a root ending in a different phoneme.
 

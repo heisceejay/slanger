@@ -194,7 +194,7 @@ export async function generateLexicon(
     const previousErrors = retryReasons.length > 0 ? retryReasons[retryReasons.length - 1] : undefined;
     const raw = await structuredRequest({
       operation: "generate_lexicon",
-      systemPrompt: GenerateLexiconPrompt.buildSystemPrompt(),
+      systemPrompt: GenerateLexiconPrompt.buildSystemPrompt(baseLanguage.phonology.inventory),
       userMessage: GenerateLexiconPrompt.buildUserMessage(req, prunedLang, previousErrors),
       expectJson: true,
       maxTokens: 4000,
