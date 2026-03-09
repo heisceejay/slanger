@@ -14,7 +14,7 @@
 
 import type { LanguageDefinition } from "@slanger/shared-types";
 import type { ValidationResult } from "@slanger/validation";
-import type { OperationName, LLMOperationResult, LLMOperationError } from "./types.js";
+import type { OperationName, LLMOperationError } from "./types.js";
 
 export const MAX_ATTEMPTS = 3;
 

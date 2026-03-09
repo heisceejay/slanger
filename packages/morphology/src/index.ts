@@ -4,7 +4,7 @@
  * derivational rule engine, morphophonological alternations.
  */
 import type {
-  MorphologyConfig, MorphologicalTypology, PartOfSpeech,
+  MorphologyConfig, PartOfSpeech,
   GrammaticalCategory, DerivationalRule, AlternationRule,
   LexicalEntry, DerivedForm, PhonologyConfig, TemplaticConfig
 } from "@slanger/shared-types";
@@ -216,7 +216,7 @@ export function validateMorphologyConfig(
 export function validateTemplaticMorphology(
   templatic: TemplaticConfig,
   config: MorphologyConfig,
-  phonology: PhonologyConfig
+  _phonology: PhonologyConfig
 ): MorphologyValidationIssue[] {
   const issues: MorphologyValidationIssue[] = [];
   const { rootTemplates, vocaloidPatterns, slots } = templatic;

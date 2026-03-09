@@ -106,7 +106,7 @@ export async function runAutonomousPipeline(
     let batchNum = 0;
 
     while (!lexiconDone) {
-      const report = generateCoverageReport(language.lexicon);
+      generateCoverageReport(language.lexicon);
       const missingSlots = CORE_VOCABULARY_SLOTS.filter(slot =>
         !language.lexicon.some(e => e.glosses.some(g => g.toLowerCase() === slot.slot.toLowerCase()) ||
           (slot.subcategory && e.subcategory === slot.subcategory))

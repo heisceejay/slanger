@@ -102,7 +102,7 @@ CRITICAL RETRY INSTRUCTIONS:
 
   // Extract flat affix samples from paradigms so the model can check root compatibility
   const affixSamples: string[] = [];
-  for (const [paradigmKey, cells] of Object.entries(lang.morphology.paradigms).slice(0, 4)) {
+  for (const cells of Object.values(lang.morphology.paradigms).slice(0, 4)) {
     if (typeof cells === "object" && cells !== null) {
       for (const [featureVal, affix] of Object.entries((cells as Record<string, string>)).slice(0, 3)) {
         if (typeof affix === "string" && affix.trim()) {

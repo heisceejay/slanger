@@ -120,13 +120,13 @@ export function LexiconView({
             </div>
             <div style={{ display: "flex", justifyContent: "center", gap: 12 }}>
               {!hasPhonology && (
-                <div style={{ padding: 12, border: "1px solid var(--rule)", borderRadius: 8, background: "rgba(255,255,255,0.05)" }}>
+                <div style={{ padding: 12, border: "1px solid var(--rule)", borderRadius: 8, background: "var(--paper-mid)" }}>
                   <div className="small mb8">Phonology Required</div>
                   <span className="muted small">Define phoneme inventory first.</span>
                 </div>
               )}
               {!hasMorphology && (
-                <div style={{ padding: 12, border: "1px solid var(--rule)", borderRadius: 8, background: "rgba(255,255,255,0.05)" }}>
+                <div style={{ padding: 12, border: "1px solid var(--rule)", borderRadius: 8, background: "var(--paper-mid)" }}>
                   <div className="small mb8">Morphology Required</div>
                   <span className="muted small">Define categories or fill paradigms first.</span>
                 </div>

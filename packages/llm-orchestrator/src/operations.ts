@@ -15,7 +15,7 @@ import { validate } from "@slanger/validation";
 import type { ValidationResult } from "@slanger/validation";
 import { structuredRequest, streamingRequest } from "./client.js";
 import { getCache } from "./cache.js";
-import { withValidationRetry, buildRetryPreamble, MAX_ATTEMPTS } from "./retry.js";
+import { MAX_ATTEMPTS } from "./retry.js";
 import { pruneLanguageForOp } from "./prune.js";
 import type {
   LLMOperationResult, LLMOperationError, StreamEvent,
@@ -63,7 +63,7 @@ export async function suggestPhonemeInventory(
 
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     const previousErrors = retryReasons.length > 0 ? retryReasons[retryReasons.length - 1] : undefined;
-    const prunedLang = pruneLanguageForOp(baseLanguage, "suggest_phoneme_inventory");
+
     const userMessage = SuggestInventoryPrompt.buildUserMessage(req, previousErrors);
 
     const raw = await structuredRequest({

@@ -27,7 +27,6 @@ import {
 } from "../index.js";
 
 import { FIXTURE_KETHANI } from "@slanger/shared-types";
-import type { PhonologyConfig, MorphologyConfig } from "@slanger/shared-types";
 import type { LanguageDefinition } from "@slanger/shared-types";
 import type { FetchFn } from "../client.js";
 
@@ -85,9 +84,6 @@ function mockLlmResponse(body: unknown): FetchFn {
   };
 }
 
-function mockLlmError(status: number, message: string): FetchFn {
-  return async () => new Response(JSON.stringify({ error: { message } }), { status });
-}
 
 /** Build a minimal but valid PhonologyConfig response */
 function mockPhonologyResponse() {
@@ -267,7 +263,7 @@ const SKELETON_LANG: LanguageDefinition = {
 console.log("\n── Op 1: suggest_phoneme_inventory ──");
 
 await test("Returns valid PhonologyConfig from Llm response", async () => {
-  const cache = setup();
+  setup();
   injectMockFetch(mockLlmResponse(mockPhonologyResponse()));
 
   const result = await suggestPhonemeInventory({
@@ -286,7 +282,7 @@ await test("Returns valid PhonologyConfig from Llm response", async () => {
 });
 
 await test("Cache hit returns immediately without calling Llm", async () => {
-  const cache = setup();
+  setup();
   injectMockFetch(mockLlmResponse(mockPhonologyResponse()));
 
   const req = { languageId: SKELETON_LANG.meta.id, naturalismScore: 0.7, preset: "naturalistic" as const, tags: ["cache-test"] };
@@ -617,7 +613,6 @@ await test("Pipeline chains all 5 steps and returns a LanguageDefinition", async
     // Llm request: messages[0].content = system, messages[1].content = user
     const messages: Array<{ role: string; content?: string }> = reqBody.messages ?? [];
     const sysPrompt: string = (messages[0]?.content ?? "") as string;
-    const userMsg: string = (messages[1]?.content ?? "") as string;
 
     let body: unknown;
     if (sysPrompt.includes("typologist") || sysPrompt.includes("phonological systems")) {

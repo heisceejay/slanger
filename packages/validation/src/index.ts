@@ -17,7 +17,7 @@ import type {
 } from "@slanger/shared-types";
 
 import {
-  validateInventory, validateOrthography, validatePhonologyConfig, validateWordForm, validateWritingSystem
+  validateInventory, validateOrthography, validateWordForm, validateWritingSystem
 } from "@slanger/phonology";
 import {
   validateMorphologyConfig, generateParadigmTable, validateParadigmPhonology, validateTemplaticMorphology
@@ -259,7 +259,7 @@ function runCrossModulePass(lang: LanguageDefinition): RawIssue[] {
     // Extract category name from key (e.g. "verb_tense" → "tense")
     const parts = paradigmKey.split("_");
     const catName = parts[parts.length - 1];
-    if (catName && !definedCategories.has(catName as any) && catName !== "present" && catName !== "past") {
+    if (catName && !(definedCategories as Set<string>).has(catName) && catName !== "present" && catName !== "past") {
       issues.push({
         ruleId: "CROSS_020", severity: "warning", module: "cross-module",
         message: `Paradigm key "${paradigmKey}" references category "${catName}" not in morphology.categories.`,

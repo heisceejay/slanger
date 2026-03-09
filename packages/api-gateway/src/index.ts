@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { initConfig, getConfig } from "./config/index.js";
+import { initConfig } from "./config/index.js";
 import { initClient } from "@slanger/llm-orchestrator";
 import { buildApp } from "./app.js";
 

@@ -232,7 +232,7 @@ export function MorphologyView({
               Morphology definition is locked until you define your language's Phonology.
             </div>
             <div style={{ display: "flex", justifyContent: "center" }}>
-              <div style={{ padding: 12, border: "1px solid var(--rule)", borderRadius: 8, background: "rgba(255,255,255,0.05)" }}>
+              <div style={{ padding: 12, border: "1px solid var(--rule)", borderRadius: 8, background: "var(--paper-mid)" }}>
                 <div className="small mb8">Phonology Required</div>
                 <span className="muted small">Define phoneme inventory in the Phonology tab first.</span>
               </div>

@@ -148,9 +148,11 @@ export function PhonologyView({ lang, onUpdated }: { lang: Language; onUpdated: 
             <button key={t} onClick={() => setTab(t)} style={{
               background: "none", border: "none",
               borderBottom: tab === t ? "2px solid var(--ink)" : "2px solid transparent",
+              color: "var(--ink)",
               padding: "8px 16px 10px", cursor: "pointer", fontSize: 10,
               letterSpacing: "0.12em", textTransform: "uppercase", fontFamily: "var(--mono)",
               marginBottom: -1, transition: "var(--transition)",
+              opacity: tab === t ? 1 : 0.6,
             }}>{t.replace("-", " ")}</button>
           ))}
         </div>

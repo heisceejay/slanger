@@ -8,11 +8,6 @@
  * Cache is invalidated automatically on language version bump.
  */
 
-// Use Web Crypto API (available in Node 20+)
-async function sha256(data: string): Promise<string> {
-  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(data));
-  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('').slice(0,16);
-}
 import type { OperationName, CacheConfig } from "./types.js";
 import { CACHE_TTLS } from "./types.js";
 
@@ -65,7 +60,7 @@ export class RedisCache implements CacheBackend {
     setex(key: string, seconds: number, value: string): Promise<unknown>;
     del(key: string): Promise<unknown>;
     keys(pattern: string): Promise<string[]>;
-  }) {}
+  }) { }
 
   async get(key: string): Promise<string | null> {
     return this.redis.get(key);
@@ -93,7 +88,7 @@ export class LLMCache {
   constructor(
     private readonly backend: CacheBackend,
     private readonly keyPrefix = "slanger:llm:"
-  ) {}
+  ) { }
 
   buildKeySync(operation: OperationName, request: unknown): string {
     // Simple sync hash: djb2 on JSON string

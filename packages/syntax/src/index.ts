@@ -5,7 +5,7 @@
  */
 import type {
   SyntaxConfig, WordOrder, AlignmentSystem, ClauseType,
-  LexicalEntry, CorpusSample, InterlinearLine, Register, MorphologyConfig, PartOfSpeech
+  LexicalEntry, CorpusSample, InterlinearLine, MorphologyConfig, PartOfSpeech
 } from "@slanger/shared-types";
 import type { ParadigmTable } from "@slanger/morphology";
 
@@ -81,7 +81,6 @@ export function validateCorpusConsistency(corpus: CorpusSample[], config: Syntax
 
     if (nouns.length >= 1 && verbs.length >= 1) {
       const firstNounIdx = posSequence.findIndex(p => p === "noun" || p === "pronoun");
-      const lastNounIdx = findLastIndex(posSequence, p => p === "noun" || p === "pronoun");
       const firstVerbIdx = posSequence.findIndex(p => p === "verb");
 
       // Extremely basic heuristic checks based on word order
@@ -109,12 +108,7 @@ export function validateCorpusConsistency(corpus: CorpusSample[], config: Syntax
   return issues;
 }
 
-function findLastIndex<T>(arr: T[], predicate: (val: T) => boolean): number {
-  for (let i = arr.length - 1; i >= 0; i--) {
-    if (predicate(arr[i]!)) return i;
-  }
-  return -1;
-}
+
 
 // ─── Sentence generation ──────────────────────────────────────────────────────
 
@@ -237,7 +231,7 @@ function addClauseMarker(verbForm: string, clauseType: ClauseType): string {
   return marker ? verbForm + marker : verbForm;
 }
 
-function applyClauseTransform(words: string[], clauseType: ClauseType, config: SyntaxConfig): string {
+function applyClauseTransform(words: string[], clauseType: ClauseType, _config: SyntaxConfig): string {
   const base = words.join(" ");
   switch (clauseType) {
     case "polar-interrogative": return base + "?";

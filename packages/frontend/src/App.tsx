@@ -27,6 +27,13 @@ export default function App() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const exportRef = useRef<HTMLDivElement>(null);
 
+  // Initialize dark mode from localStorage on mount
+  useEffect(() => {
+    if (localStorage.getItem("slanger_theme") === "dark") {
+      document.documentElement.setAttribute("data-theme", "dark");
+    }
+  }, []);
+
   const activeLang = languages.find((l) => l.meta.id === activeId) ?? null;
 
   useEffect(() => {

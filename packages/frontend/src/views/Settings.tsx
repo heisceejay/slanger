@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import type { Language } from "../lib/api";
 import { createLanguage, deleteLanguage, importLanguageFromJson } from "../lib/api";
 
@@ -21,6 +21,21 @@ export function SettingsView({
   const [error, setError] = useState("");
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Dark mode state — persisted in localStorage
+  const [darkMode, setDarkMode] = useState(() => {
+    return localStorage.getItem("slanger_theme") === "dark";
+  });
+
+  useEffect(() => {
+    if (darkMode) {
+      document.documentElement.setAttribute("data-theme", "dark");
+      localStorage.setItem("slanger_theme", "dark");
+    } else {
+      document.documentElement.removeAttribute("data-theme");
+      localStorage.setItem("slanger_theme", "light");
+    }
+  }, [darkMode]);
 
   async function handleCreate() {
     if (!name.trim()) return;
@@ -280,6 +295,25 @@ export function SettingsView({
             <div className="small muted">No languages created yet</div>
           </div>
         )}
+
+        {/* Dark mode toggle */}
+        <div className="panel fade-up-2" style={{ marginTop: 24 }}>
+          <div className="panel-head"><span className="panel-title">Appearance</span></div>
+          <div className="theme-toggle-row">
+            <div className="theme-toggle-label">
+              <span>Dark Mode</span>
+              <span>{darkMode ? "Dark theme active" : "Light theme active"}</span>
+            </div>
+            <label className="toggle-switch">
+              <input
+                type="checkbox"
+                checked={darkMode}
+                onChange={(e) => setDarkMode(e.target.checked)}
+              />
+              <span className="toggle-track" />
+            </label>
+          </div>
+        </div>
       </div>
     </>
   );

@@ -76,7 +76,7 @@ export function pruneLanguageForOp(
 
     // Clear large metadata fields not needed by LLM
     if (pruned.meta.versionHistory) {
-        delete (pruned.meta as any).versionHistory;
+        delete (pruned.meta as { versionHistory?: unknown }).versionHistory;
     }
 
     return pruned;

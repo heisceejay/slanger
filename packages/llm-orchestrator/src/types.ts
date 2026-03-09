@@ -5,8 +5,8 @@
  * All responses are validated before leaving the orchestrator.
  */
 import type {
-  LanguageDefinition, PhonologyConfig, MorphologyConfig, SyntaxConfig,
-  LexicalEntry, CorpusSample, PragmaticsConfig, SemanticsConfig, CulturalConfig
+  LanguageDefinition, PhonologyConfig, MorphologyConfig,
+  LexicalEntry, CorpusSample
 } from "@slanger/shared-types";
 import type { ValidationResult } from "@slanger/validation";
 

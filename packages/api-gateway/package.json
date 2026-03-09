@@ -9,7 +9,7 @@
     "dev": "node --watch --experimental-specifier-resolution=node dist/index.js",
     "typecheck": "tsc --noEmit",
     "test": "node --test dist/**/*.test.js",
-    "lint": "eslint src --ext .ts"
+    "lint": "eslint src"
   },
   "dependencies": {
     "@fastify/cors": "^9.0.0",
