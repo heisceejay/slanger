@@ -169,6 +169,7 @@ export function Dashboard({
                     textAlign: "left",
                     transition: "var(--transition)",
                     fontFamily: "var(--mono)",
+                    color: "var(--ink)",
                   }}
                   onMouseEnter={(e) => (e.currentTarget.style.background = "var(--paper-mid)")}
                   onMouseLeave={(e) => (e.currentTarget.style.background = "none")}
