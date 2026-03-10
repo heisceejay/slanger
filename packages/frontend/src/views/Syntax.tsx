@@ -366,7 +366,7 @@ export function SyntaxView({
                   >
                     <div style={{ color: "var(--ink)", fontWeight: "bold" }}>ⓘ</div>
                     Word order or adposition type changed — phrase structure has been auto-updated to match. You can further adjust below.
-                    <button onClick={() => setAutoDerivedWarning(false)} style={{ marginLeft: "auto", background: "none", border: "none", cursor: "pointer", opacity: 0.5 }}>×</button>
+                    <button onClick={() => setAutoDerivedWarning(false)} style={{ marginLeft: "auto", background: "none", border: "none", cursor: "pointer", opacity: 0.5, color: "inherit" }}>×</button>
                   </div>
                 )}
 
@@ -462,7 +462,8 @@ export function SyntaxView({
                                     appearance: "none", border: "none", background: "transparent",
                                     padding: "0 4px", outline: "none", fontFamily: "inherit", fontSize: "inherit",
                                     fontStyle: slot.optional ? "italic" : "normal",
-                                    cursor: "pointer"
+                                    cursor: "pointer",
+                                    color: "inherit"
                                   }}
                                 >
                                   {CONSTITUENT_LABELS.map(l => <option key={l} value={l}>{l}</option>)}
@@ -478,7 +479,7 @@ export function SyntaxView({
                                   }}
                                   style={{
                                     width: Math.max(20, slot.label.length * 8) + 'px', outline: "none", border: "1px dashed var(--rule)",
-                                    background: "transparent", padding: "0 2px", fontFamily: "inherit", fontSize: "inherit"
+                                    background: "transparent", padding: "0 2px", fontFamily: "inherit", fontSize: "inherit", color: "inherit"
                                   }}
                                   autoFocus
                                 />
@@ -493,7 +494,7 @@ export function SyntaxView({
                                     next[index] = { ...slot, optional: !slot.optional };
                                     setEditingStructure({ ...editingStructure, [phraseType]: next });
                                   }}
-                                  style={{ background: "none", border: "none", cursor: "pointer", fontSize: 10, padding: 2, fontWeight: slot.optional ? "bold" : "normal", color: slot.optional ? "var(--ink)" : "" }}
+                                  style={{ background: "none", border: "none", cursor: "pointer", fontSize: 10, padding: 2, fontWeight: slot.optional ? "bold" : "normal", color: slot.optional ? "var(--ink)" : "inherit" }}
                                 >{slot.optional ? "( )" : "(-)"}</button>
                                 <button
                                   title="Toggle Repeatable"
@@ -502,7 +503,7 @@ export function SyntaxView({
                                     next[index] = { ...slot, repeatable: !slot.repeatable };
                                     setEditingStructure({ ...editingStructure, [phraseType]: next });
                                   }}
-                                  style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, padding: 2, fontWeight: slot.repeatable ? "bold" : "normal", color: slot.repeatable ? "var(--ink)" : "" }}
+                                  style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, padding: 2, fontWeight: slot.repeatable ? "bold" : "normal", color: slot.repeatable ? "var(--ink)" : "inherit" }}
                                 >⁺</button>
                                 <button
                                   title="Remove Slot"
@@ -511,7 +512,7 @@ export function SyntaxView({
                                     next.splice(index, 1);
                                     setEditingStructure({ ...editingStructure, [phraseType]: next });
                                   }}
-                                  style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, padding: 2 }}
+                                  style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, padding: 2, color: "inherit" }}
                                 >×</button>
                               </div>
                             </div>
@@ -530,6 +531,7 @@ export function SyntaxView({
                               fontSize: 11,
                               cursor: "pointer",
                               opacity: 0.6,
+                              color: "var(--ink)"
                             }}
                           >+ Add Slot</button>
                         </div>
@@ -586,7 +588,7 @@ export function SyntaxView({
                     </button>
                     <button
                       onClick={() => setAddingPhraseType(false)}
-                      style={{ background: "none", border: "none", cursor: "pointer", opacity: 0.5 }}
+                      style={{ background: "none", border: "none", cursor: "pointer", opacity: 0.5, color: "inherit" }}
                     >×</button>
                   </div>
                 )}

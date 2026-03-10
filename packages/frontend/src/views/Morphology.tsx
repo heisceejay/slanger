@@ -453,6 +453,7 @@ export function MorphologyView({
                             cursor: i === 0 ? "not-allowed" : "pointer",
                             opacity: i === 0 ? 0.3 : 0.7,
                             fontSize: 9,
+                            color: "inherit"
                           }}
                         >
                           ▲
@@ -469,6 +470,7 @@ export function MorphologyView({
                             cursor: i === morph.morphemeOrder.length - 1 ? "not-allowed" : "pointer",
                             opacity: i === morph.morphemeOrder.length - 1 ? 0.3 : 0.7,
                             fontSize: 9,
+                            color: "inherit"
                           }}
                         >
                           ▼
