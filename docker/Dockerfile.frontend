@@ -6,9 +6,14 @@ WORKDIR /app
 # Copy workspace manifests for layer caching
 COPY package.json package-lock.json ./
 COPY packages/frontend/package.json ./packages/frontend/
+COPY packages/shared-types/package.json ./packages/shared-types/
 
-RUN npm ci --workspace=packages/frontend
+RUN npm ci \
+  --workspace=packages/shared-types \
+  --workspace=packages/frontend
 
+# Frontend tsconfig path-maps @slanger/shared-types to ../shared-types/src/index.ts
+COPY packages/shared-types ./packages/shared-types/
 COPY packages/frontend ./packages/frontend/
 
 # Build Vite app
