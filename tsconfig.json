@@ -1,0 +1,13 @@
+{
+  "files": [],
+  "references": [
+    { "path": "./packages/shared-types" },
+    { "path": "./packages/phonology" },
+    { "path": "./packages/morphology" },
+    { "path": "./packages/syntax" },
+    { "path": "./packages/lexicon" },
+    { "path": "./packages/validation" },
+    { "path": "./packages/llm-orchestrator" },
+    { "path": "./packages/api-gateway" }
+  ]
+}
