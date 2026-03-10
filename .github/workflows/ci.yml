@@ -25,8 +25,8 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: "npm"
       - run: npm ci
-      - run: npm run typecheck --workspaces --if-present
-      - run: npm run lint --workspaces --if-present
+      - run: npm run typecheck
+      - run: npm run lint
 
   # ─── 2. Unit Tests ──────────────────────────────────────────────────────────
   unit-tests:
@@ -40,8 +40,8 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: "npm"
       - run: npm ci
-      - run: npm run build --workspaces --if-present
-      - run: npm run test --workspaces --if-present
+      - run: npm run build
+      - run: npm run test
         env:
           GEMINI_API_KEY: test_key_not_used_in_unit_tests
 
