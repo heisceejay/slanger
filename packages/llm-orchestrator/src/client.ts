@@ -2,7 +2,7 @@
  * OpenRouter API client — fetch-based, no SDK dependency.
  *
  * Uses the OpenRouter OpenAI-compatible chat completions REST endpoint.
- * Default: stepfun/step-3.5-flash:free (free tier, fast). Handles structured (JSON)
+ * Default: anthropic/claude-3-haiku (fast, reliable). Handles structured (JSON)
  * requests, streaming (SSE), retries, and token usage tracking.
  */
 
@@ -123,6 +123,7 @@ interface OpenRouterStreamChunk {
 
 export interface StructuredRequestOptions {
   operation: OperationName;
+  requestId?: string;
   systemPrompt: string;
   userMessage: string;
   expectJson: true;
@@ -146,7 +147,8 @@ export async function structuredRequest(opts: StructuredRequestOptions): Promise
       },
     ],
     max_tokens: opts.maxTokens ?? cfg.maxTokensStructured,
-    temperature: 0.7,
+    // Lower temperature for structured JSON reduces malformed outputs.
+    temperature: 0.2,
   };
 
   let lastError: Error | null = null;
@@ -163,6 +165,7 @@ export async function structuredRequest(opts: StructuredRequestOptions): Promise
           "Authorization": `Bearer ${cfg.apiKey}`,
           "HTTP-Referer": cfg.siteUrl,
           "X-Title": cfg.siteName,
+          ...(opts.requestId ? { "X-Request-ID": opts.requestId } : {}),
         },
         body: JSON.stringify(body),
         signal: controller.signal,
@@ -234,6 +237,7 @@ export async function structuredRequest(opts: StructuredRequestOptions): Promise
 
 export interface StreamingRequestOptions {
   operation: OperationName;
+  requestId?: string;
   systemPrompt: string;
   userMessage: string;
   maxTokens?: number;
@@ -269,6 +273,7 @@ export async function streamingRequest(opts: StreamingRequestOptions): Promise<s
         "Authorization": `Bearer ${cfg.apiKey}`,
         "HTTP-Referer": cfg.siteUrl,
         "X-Title": cfg.siteName,
+        ...(opts.requestId ? { "X-Request-ID": opts.requestId } : {}),
       },
       body: JSON.stringify(body),
       signal: controller.signal,
@@ -380,10 +385,79 @@ export function parseJson<T>(raw: string, context: string): T {
   try {
     return JSON.parse(raw) as T;
   } catch (err) {
+    const repaired = repairJsonCommon(raw);
+    if (repaired !== raw) {
+      try {
+        return JSON.parse(repaired) as T;
+      } catch (err2) {
+        throw new Error(
+          `Failed to parse JSON from ${context} (after repair).\n` +
+          `Parse error: ${err2 instanceof Error ? err2.message : String(err2)}\n` +
+          `Raw (first 500): ${raw.slice(0, 500)}`
+        );
+      }
+    }
+
     throw new Error(
       `Failed to parse JSON from ${context}.\nParse error: ${err instanceof Error ? err.message : String(err)}\nRaw (first 500): ${raw.slice(0, 500)}`
     );
   }
+}
+
+function repairJsonCommon(raw: string): string {
+  let s = raw.trim();
+
+  // Common: trailing commas before } or ].
+  s = s.replace(/,\s*([}\]])/g, "$1");
+
+  // Common: literal newlines inside JSON strings (invalid). Escape them.
+  let out = "";
+  let inString = false;
+  let escaped = false;
+  for (let i = 0; i < s.length; i++) {
+    const ch = s[i]!;
+
+    if (inString) {
+      if (escaped) {
+        out += ch;
+        escaped = false;
+        continue;
+      }
+      if (ch === "\\") {
+        out += ch;
+        escaped = true;
+        continue;
+      }
+      if (ch === "\"") {
+        out += ch;
+        inString = false;
+        continue;
+      }
+      if (ch === "\r") {
+        // Convert CRLF or CR to \n within string
+        if (s[i + 1] === "\n") i++;
+        out += "\\n";
+        continue;
+      }
+      if (ch === "\n") {
+        out += "\\n";
+        continue;
+      }
+      out += ch;
+      continue;
+    }
+
+    if (ch === "\"") {
+      out += ch;
+      inString = true;
+      escaped = false;
+      continue;
+    }
+
+    out += ch;
+  }
+
+  return out;
 }
 
 function sleep(ms: number): Promise<void> {

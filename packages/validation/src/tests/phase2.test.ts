@@ -113,7 +113,7 @@ test("Paradigm table generates for Kethani verb 'kelu'", () => {
 test("Nominalization rule produces 'keluur' from 'kelu'", () => {
   const entry = FIXTURE_KETHANI.lexicon[1]!;
   const derived = applyDerivationalRules(entry, FIXTURE_KETHANI.morphology.derivationalRules, FIXTURE_KETHANI.phonology);
-  const nom = derived.find(d => d.ruleId === "drv_nom");
+  const nom = derived.find((d: any) => d.ruleId === "drv_nom");
   ok(nom, "nominalization not found");
   eq(nom?.orthographicForm, "keluur");
   eq(nom?.pos, "noun");
@@ -122,7 +122,7 @@ test("Nominalization rule produces 'keluur' from 'kelu'", () => {
 test("Adjectivization rule produces 'tanaik' from 'tana'", () => {
   const entry = FIXTURE_KETHANI.lexicon[0]!;
   const derived = applyDerivationalRules(entry, FIXTURE_KETHANI.morphology.derivationalRules, FIXTURE_KETHANI.phonology);
-  const adj = derived.find(d => d.ruleId === "drv_adj");
+  const adj = derived.find((d: any) => d.ruleId === "drv_adj");
   ok(adj, "adjectivization not found");
   eq(adj?.orthographicForm, "tanaik");
 });
@@ -137,17 +137,17 @@ test("Varossi fusional paradigm has verb_present and verb_past", () => {
 console.log("\n── Syntax ──");
 
 test("Kethani SOV syntax passes validation", () => {
-  const errors = validateSyntaxConfig(FIXTURE_KETHANI.syntax).filter(i => i.severity === "error");
+  const errors = validateSyntaxConfig(FIXTURE_KETHANI.syntax).filter((i: any) => i.severity === "error");
   eq(errors.length, 0);
 });
 
 test("Varossi SVO syntax passes validation", () => {
-  const errors = validateSyntaxConfig(FIXTURE_VAROSSI.syntax).filter(i => i.severity === "error");
+  const errors = validateSyntaxConfig(FIXTURE_VAROSSI.syntax).filter((i: any) => i.severity === "error");
   eq(errors.length, 0);
 });
 
 test("Xr'veth free-order syntax passes validation", () => {
-  const errors = validateSyntaxConfig(FIXTURE_XRVETH.syntax).filter(i => i.severity === "error");
+  const errors = validateSyntaxConfig(FIXTURE_XRVETH.syntax).filter((i: any) => i.severity === "error");
   eq(errors.length, 0);
 });
 
@@ -167,20 +167,20 @@ test("Core slots list has 70+ defined slots", () => {
 });
 
 test("Core slots include 6 personal pronouns (I/you/he/we/you-pl/they)", () => {
-  const pronouns = CORE_VOCABULARY_SLOTS.filter(s => s.subcategory === "personal-pronoun");
+  const pronouns = CORE_VOCABULARY_SLOTS.filter((s: any) => s.subcategory === "personal-pronoun");
   ok(pronouns.length >= 6);
 });
 
 test("Core slots include cardinal numbers", () => {
-  ok(CORE_VOCABULARY_SLOTS.filter(s => s.subcategory === "cardinal-number").length >= 5);
+  ok(CORE_VOCABULARY_SLOTS.filter((s: any) => s.subcategory === "cardinal-number").length >= 5);
 });
 
 test("Core slots include negation particle", () => {
-  ok(CORE_VOCABULARY_SLOTS.filter(s => s.subcategory === "negation").length >= 1);
+  ok(CORE_VOCABULARY_SLOTS.filter((s: any) => s.subcategory === "negation").length >= 1);
 });
 
 test("Core slots include copula", () => {
-  ok(CORE_VOCABULARY_SLOTS.filter(s => s.subcategory === "copula").length >= 1);
+  ok(CORE_VOCABULARY_SLOTS.filter((s: any) => s.subcategory === "copula").length >= 1);
 });
 
 test("Coverage report detects missing slots in small fixture", () => {
@@ -190,7 +190,7 @@ test("Coverage report detects missing slots in small fixture", () => {
 
 test("Kethani lexicon has no validation errors", () => {
   const errors = validateLexicon(FIXTURE_KETHANI.lexicon, FIXTURE_KETHANI.morphology, FIXTURE_KETHANI.phonology)
-    .filter(i => i.severity === "error");
+    .filter((i: any) => i.severity === "error");
   eq(errors.length, 0, JSON.stringify(errors));
 });
 

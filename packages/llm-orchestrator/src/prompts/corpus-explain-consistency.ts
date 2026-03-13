@@ -12,6 +12,7 @@ import type {
   CheckConsistencyRequest, CheckConsistencyResponse
 } from "../types.js";
 import type { CorpusSample, InterlinearLine, LexicalEntry, LanguageDefinition } from "@slanger/shared-types";
+import { parseJson } from "../client.js";
 
 // ─── Op 4: generate_corpus ────────────────────────────────────────────────────
 
@@ -23,10 +24,30 @@ You create corpus samples for constructed languages. Each sample must:
 3. MORPHOLOGY COMPLIANCE: Apply the correct inflectional morphology using the paradigm tables.
 4. LEXICON REUSE: You MUST prioritize using words from the provided lexicon. Do not coin a new word if a near-synonym already exists.
 5. NEW WORD CONSTRAINTS: If you ABSOLUTELY MUST coin a new word to make a sentence logical, you MUST add it to "newEntries". ANY new word MUST use ONLY the exact phonemes from the phonology inventory and follow the syllable templates.
-6. Produce interlinear glosses using plain English translations for each morpheme (NO LEIPZIG ABBREVIATIONS).
-7. Include IPA transcription (only allowed consonants and vowels from the phonology).
-8. English translation must be in SVO order for clarity, even if the conlang has different word order.
-9. TEMPLATIC MORPHOLOGY (if enabled): the 'morphemes' array should contain the root consonants (e.g. "k-t-b") and the 'glosses' should reflect the root meaning and the vocalic pattern meaning.`;
+6. NATURAL ENGLISH TRANSLATION:
+   - The "translation" field MUST be a clean, natural, idiomatic English sentence.
+   - IT MUST NOT contain any grammatical labels, markers, or technical notes (e.g., NO "-subject", NO "(past)", NO "[acc]").
+   - Correct: "The dog eats the meat."
+   - Incorrect: "The dog-subject eats the meat-object." or "dog (noun) eats meat."
+
+7. PLAIN ENGLISH GLOSSING (interlinearGloss): 
+   - You must use plain, normal English words for the "glosses" array. 
+   - LEIPZIG ABBREVIATIONS AND TECHNICAL LABELS ARE STRICTLY FORBIDDEN.
+   
+   | Concept | DONT USE (Leipzig/Technical) | DO USE (Natural English) |
+   |---------|--------------------|------------------------|
+   | Case    | NOM, ACC, subject, object | (omit if English doesn't mark it) |
+   | Case    | DAT, GEN           | to, for, of, 's        |
+   | Tense   | PST, past, PRS, present | did, was, is           |
+   | Number  | SG, PL, dual       | (none), s, plural, two |
+   | Person  | 1SG, 2PL           | I, you-all             |
+
+   - Example: If a word is "dog-NOM", the glosses should just be ["dog", ""]. 
+   - Example: If a word is "eat-PST", the glosses should be ["eat", "past"] or ["did", "eat"].
+
+8. Include IPA transcription (only allowed consonants and vowels from the phonology).
+9. English translation must be in SVO order for clarity.
+10. TEMPLATIC MORPHOLOGY (if enabled): the 'morphemes' array should contain the root consonants (e.g. "k-t-b") and the 'glosses' should reflect the root meaning and the vocalic pattern meaning.`;
 
 export function buildCorpusUserMessage(req: GenerateCorpusRequest, retryErrors?: string[]): string {
   const retryBlock = retryErrors?.length
@@ -66,7 +87,7 @@ Generate ${req.count} corpus sample(s) for this constructed language.
 SYNTAX (STRICT COMPLIANCE REQUIRED)
 ═══════════════════════════════════════════
 - Word order: ${req.language.syntax.wordOrder}
-- Morphosyntactic alignment: ${req.language.syntax.alignment} (ensure subjects/objects are case-marked or agreed-with correctly according to this alignment)
+- Morphosyntactic alignment: ${req.language.syntax.alignment}
 - Headedness: ${req.language.syntax.headedness}
 - Adposition type: ${req.language.syntax.adpositionType}
 - Supported clause types: ${req.language.syntax.clauseTypes.join(", ")}
@@ -118,12 +139,12 @@ Generate exactly ${req.count} sample(s) following THIS JSON structure:
       "register": "${req.registers[0]}",
       "orthographicText": "<text in language's orthography>",
       "ipaText": "/<full IPA transcription>/",
-      "translation": "<English free translation>",
+      "translation": "<NATURAL idiomatic English free translation>",
       "interlinearGloss": [
         {
           "word": "<orthographic word>",
           "morphemes": ["<root>", "-<suffix>"],
-          "glosses": ["<english meaning>", "<normal english grammatical word, e.g. 'past' or 'plural'>"]
+          "glosses": ["<english word>", "<clue word or empty string>"]
         }
       ],
       "prompt": "${req.userPrompt ?? ""}",
@@ -137,10 +158,10 @@ Generate exactly ${req.count} sample(s) following THIS JSON structure:
 
 CRITICAL:
 - Write sentences that are logical and well-formed.
-- If you use ANY word NOT in the lexicon above, you MUST add it to "newEntries".
-- Any word in "newEntries" MUST use ONLY the exact consonants and vowels listed in PHONOLOGY.
-- DO NOT use Leipzig glossing rules or grammatical abbreviations (like 1SG, NOM, PST). Use plain, normal English words for the glosses (e.g., "I", "past", "plural", "he").
-- The \`morphemes\` array and \`glosses\` array MUST HAVE THE EXACT SAME LENGTH so they map 1:1 in the UI. Every morpheme must have exactly one corresponding plain English gloss string.
+- The "translation" field MUST be clean, natural English. NO technical markers like "-subject" or "(past)".
+- Glosses array: USE NORMAL WORDS. NO 1SG, NO NOM, NO ACC, NO PST.
+- If a case marker like Nominative is used, and English doesn't show it with a word, the gloss for that morpheme should be an empty string "".
+- The \`morphemes\` array and \`glosses\` array MUST HAVE THE EXACT SAME LENGTH.
 
 RESPOND WITH ONLY valid JSON. No markdown, no preamble.`.trim();
 }
@@ -200,7 +221,7 @@ export function normalizeCorpusSamplesToLexicon(
 }
 
 export function parseCorpusResponse(raw: string): GenerateCorpusResponse {
-  const parsed = JSON.parse(raw) as Partial<GenerateCorpusResponse & { newEntries?: unknown[] }>;
+  const parsed = parseJson<Partial<GenerateCorpusResponse & { newEntries?: unknown[] }>>(raw, "generate_corpus");
   if (!Array.isArray(parsed.samples)) throw new Error('Response missing "samples" array');
   const samples: CorpusSample[] = (parsed.samples as unknown as Record<string, unknown>[]).map((s, i) => {
     const sample: CorpusSample = {
@@ -294,7 +315,7 @@ Respond with ONLY this JSON:
 }
 
 export function parseExplainResponse(raw: string): ExplainRuleResponse {
-  const parsed = JSON.parse(raw) as Partial<ExplainRuleResponse>;
+  const parsed = parseJson<Partial<ExplainRuleResponse>>(raw, "explain_rule");
   if (!parsed.explanation) throw new Error('Response missing "explanation"');
   return {
     explanation: String(parsed.explanation),
@@ -374,7 +395,7 @@ Respond with ONLY this JSON:
 }
 
 export function parseConsistencyResponse(raw: string): CheckConsistencyResponse {
-  const parsed = JSON.parse(raw) as Partial<CheckConsistencyResponse>;
+  const parsed = parseJson<Partial<CheckConsistencyResponse>>(raw, "check_consistency");
   if (typeof parsed.overallScore !== "number") throw new Error('Response missing numeric "overallScore"');
   return {
     overallScore: Math.max(0, Math.min(100, parsed.overallScore)),

@@ -1,4 +1,28 @@
 /// <reference types="vite/client" />
+import type {
+  LanguageDefinition as Language,
+  LanguageMeta,
+  VersionSnapshot,
+  PhonologyConfig,
+  MorphologyConfig,
+  SyntaxConfig,
+  LexicalEntry,
+  CorpusSample,
+  ValidationState
+} from "@slanger/shared-types";
+
+export type {
+  Language,
+  LanguageMeta,
+  VersionSnapshot,
+  PhonologyConfig,
+  MorphologyConfig,
+  SyntaxConfig,
+  LexicalEntry,
+  CorpusSample,
+  ValidationState
+};
+
 /**
  * Slanger API client
  *
@@ -32,128 +56,6 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   }
   return res.json() as Promise<T>;
 }
-
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-export interface VersionSnapshot {
-  label: string;
-  timestamp: string;
-  snapshot: Language;
-}
-
-export interface LanguageMeta {
-  id: string;
-  name: string;
-  world?: string;
-  tags: string[];
-  version: number;
-  preset: string;
-  naturalismScore: number;
-  createdAt: string;
-  updatedAt: string;
-  authorId?: string;
-  versionHistory?: VersionSnapshot[];
-}
-
-export interface PhonologyConfig {
-  inventory: { consonants: string[]; vowels: string[]; tones: string[] };
-  phonotactics: {
-    syllableTemplates: string[];
-    onsetClusters: string[][];
-    codaClusters: string[][];
-    allophonyRules: { phoneme: string; allophone: string; environment: string; position?: string }[];
-  };
-  orthography: Record<string, string>;
-  suprasegmentals: {
-    hasLexicalTone: boolean;
-    hasPhonemicStress: boolean;
-    hasVowelLength: boolean;
-    hasPhonemicNasalization: boolean;
-  };
-  writingSystem?: {
-    type: "alphabet" | "abjad" | "abugida" | "syllabary" | "logographic" | "hybrid";
-    mappings: Record<string, string[]>;
-    aesthetics: {
-      complexity: number;
-      style: "angular" | "rounded" | "blocky" | "cursive";
-      strokeDensity: number;
-    };
-    glyphs: Record<string, string>;
-  };
-}
-
-export interface MorphologyConfig {
-  typology: string;
-  categories: Record<string, string[]>;
-  paradigms: Record<string, Record<string, string>>;
-  morphemeOrder: string[];
-  derivationalRules: { id: string; sourcePos: string; targetPos: string; label: string; affix: string; affixType: string }[];
-  alternationRules: { id: string; trigger?: string; input?: string; output?: string; boundary?: string; description?: string; pattern?: string; example?: string }[];
-  templatic?: {
-    enabled: boolean;
-    rootTemplates: string[];
-    vocaloidPatterns: Record<string, string>;
-    slots: string[];
-  };
-}
-
-export interface SyntaxConfig {
-  wordOrder: string;
-  alignment: string;
-  phraseStructure: Record<string, { label: string; optional: boolean; repeatable: boolean }[]>;
-  clauseTypes: string[];
-  headedness: string;
-  adpositionType: string;
-}
-
-export interface LexicalEntry {
-  id: string;
-  orthographicForm: string;
-  phonologicalForm: string;
-  pos: string;
-  subcategory?: string;
-  glosses: string[];
-  semanticFields: string[];
-  derivedForms: unknown[];
-  source: string;
-  senses?: Array<{ index: number; gloss: string; semanticField?: string }>;
-  etymology?: string;
-  etymologyType?: "derived" | "borrowed" | "reconstructed";
-  derivedFromEntryId?: string;
-  borrowedFrom?: string;
-}
-
-export interface CorpusSample {
-  id: string;
-  register: string;
-  orthographicText: string;
-  ipaText?: string;
-  translation: string;
-  interlinearGloss: { word: string; morphemes: string[]; glosses: string[] }[];
-  generatedAt: string;
-}
-
-export interface ValidationState {
-  lastRun: string;
-  errors: { module: string; ruleId: string; message: string; entityRef: string | null }[];
-  warnings: { module: string; ruleId: string; message: string; entityRef: string | null }[];
-}
-
-export interface Language {
-  slangerVersion: string;
-  meta: LanguageMeta;
-  phonology: PhonologyConfig;
-  morphology: MorphologyConfig;
-  syntax: SyntaxConfig;
-  pragmatics: unknown;
-  semantics: unknown;
-  culture: unknown;
-  lexicon: LexicalEntry[];
-  corpus: CorpusSample[];
-  validationState: ValidationState;
-}
-
-// ─── sessionStorage CRUD ──────────────────────────────────────────────────────
 
 const STORAGE_KEY = "slanger_languages";
 
@@ -190,17 +92,18 @@ export function createLanguage(input: {
 }): Language {
   const ts = new Date().toISOString();
   const lang: Language = {
-    slangerVersion: "1.0",
+    slangerVersion: "1.0" as const,
     meta: {
       id: uid(),
       name: input.name,
       world: input.world,
       tags: input.tags ?? [],
       version: 1,
-      preset: input.preset ?? "naturalistic",
+      preset: (input.preset ?? "naturalistic") as LanguageMeta["preset"],
       naturalismScore: input.naturalismScore ?? 0.7,
       createdAt: ts,
       updatedAt: ts,
+      authorId: "local_user",
     },
     phonology: {
       inventory: { consonants: [], vowels: [], tones: [] },
@@ -210,6 +113,12 @@ export function createLanguage(input: {
         hasLexicalTone: false, hasPhonemicStress: false,
         hasVowelLength: false, hasPhonemicNasalization: false,
       },
+      writingSystem: {
+        type: "alphabet",
+        mappings: {},
+        aesthetics: { complexity: 5, style: "rounded", strokeDensity: 5 },
+        glyphs: {}
+      }
     },
     morphology: {
       typology: "analytic",
@@ -257,23 +166,30 @@ export function importLanguageFromJson(parsed: unknown): Language {
   }
   const ts = new Date().toISOString();
   const lang: Language = {
-    slangerVersion: (raw.slangerVersion as string) ?? "1.0",
+    slangerVersion: (raw.slangerVersion === "1.0" ? "1.0" : "1.0"),
     meta: {
       id: uid(),
       name: String(meta.name),
       world: meta.world !== undefined ? String(meta.world) : undefined,
       tags: Array.isArray(meta.tags) ? (meta.tags as string[]) : [],
       version: 1,
-      preset: typeof meta.preset === "string" ? meta.preset : "naturalistic",
+      preset: (typeof meta.preset === "string" ? meta.preset : "naturalistic") as LanguageMeta["preset"],
       naturalismScore: typeof meta.naturalismScore === "number" ? meta.naturalismScore : 0.7,
       createdAt: ts,
       updatedAt: ts,
+      authorId: "local_user",
     },
     phonology: (raw.phonology as Language["phonology"]) ?? {
       inventory: { consonants: [], vowels: [], tones: [] },
       phonotactics: { syllableTemplates: [], onsetClusters: [], codaClusters: [], allophonyRules: [] },
       orthography: {},
       suprasegmentals: { hasLexicalTone: false, hasPhonemicStress: false, hasVowelLength: false, hasPhonemicNasalization: false },
+      writingSystem: {
+        type: "alphabet",
+        mappings: {},
+        aesthetics: { complexity: 5, style: "rounded", strokeDensity: 5 },
+        glyphs: {}
+      }
     },
     morphology: (raw.morphology as Language["morphology"]) ?? {
       typology: "analytic",
@@ -377,6 +293,18 @@ export function deleteLanguage(id: string): boolean {
   if (next.length === all.length) return false;
   saveAll(next);
   return true;
+}
+
+export function deleteCorpusSample(langId: string, sampleId: string): Language | null {
+  const all = loadAll();
+  const idx = all.findIndex((l) => l.meta.id === langId);
+  if (idx === -1) return null;
+  const lang = all[idx];
+  const nextCorpus = lang.corpus.filter((s) => s.id !== sampleId);
+  if (nextCorpus.length === lang.corpus.length) return lang;
+  
+  const updated = updateLanguage(langId, { corpus: nextCorpus });
+  return updated;
 }
 
 // ─── LLM operations ───────────────────────────────────────────────────────────
@@ -487,11 +415,35 @@ export interface FillResult {
   rationale: string;
 }
 
-export async function fillParadigms(lang: Language): Promise<FillResult> {
+/** Ensure language payload has all fields required by the API (no undefined → JSON drops them → 400). */
+function normalizeLangForApi(lang: Language): Language {
+  const m = lang.meta;
+  const morph = lang.morphology ?? {};
+  return {
+    ...stripForApi(lang),
+    meta: {
+      ...m,
+      naturalismScore: typeof m.naturalismScore === "number" ? m.naturalismScore : 0.7,
+      preset: m.preset ?? "naturalistic",
+      tags: Array.isArray(m.tags) ? m.tags : [],
+      version: typeof m.version === "number" ? m.version : 1,
+    },
+    morphology: {
+      typology: (morph as { typology?: string }).typology ?? "analytic",
+      categories: (morph as { categories?: Record<string, string[]> }).categories ?? {},
+      paradigms: (morph as { paradigms?: Record<string, unknown> }).paradigms ?? {},
+      morphemeOrder: Array.isArray((morph as { morphemeOrder?: string[] }).morphemeOrder) ? (morph as { morphemeOrder: string[] }).morphemeOrder : ["root"],
+      derivationalRules: Array.isArray((morph as { derivationalRules?: unknown[] }).derivationalRules) ? (morph as { derivationalRules: unknown[] }).derivationalRules : [],
+      alternationRules: Array.isArray((morph as { alternationRules?: unknown[] }).alternationRules) ? (morph as { alternationRules: unknown[] }).alternationRules : [],
+    } as MorphologyConfig,
+  };
+}
+
+export async function fillParadigms(lang: Language, mode: "augment" | "replace" = "augment"): Promise<FillResult> {
   const res = await request<{ data: { language: Language; rationale: string } }>(
-    "POST", "/fill-paradigms", stripForApi(lang)
+    "POST", "/fill-paradigms", { language: normalizeLangForApi(lang), mode }
   );
-  return { language: persistWithHistory(lang, res.data.language, "Before: Fill paradigm gaps"), rationale: res.data.rationale ?? "" };
+  return { language: persistWithHistory(lang, res.data.language, `Before: Fill paradigm gaps (${mode})`), rationale: res.data.rationale ?? "" };
 }
 
 export async function generateLexicon(lang: Language, batchSize = 15): Promise<Language> {

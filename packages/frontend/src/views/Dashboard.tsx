@@ -1,7 +1,7 @@
 import type { Language } from "../lib/api";
 import type { View } from "../App";
 import { checkConsistency } from "../lib/api";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 
 export function Dashboard({
   lang,
@@ -23,6 +23,44 @@ export function Dashboard({
     linguisticIssues?: { severity: string; module: string; description: string; suggestion: string }[];
   } | null>(null);
 
+  const analysis = useMemo(() => {
+    const wordCounts: Record<string, number> = {};
+    let totalTokens = 0;
+    const corpus = lang.corpus || [];
+
+    corpus.forEach((sample) => {
+      const tokens = sample.orthographicText
+        .toLowerCase()
+        .replace(/[.,/#!$%^&*;:{}=\-_`~()]/g, "")
+        .split(/\s+/)
+        .filter(Boolean);
+
+      tokens.forEach((token) => {
+        wordCounts[token] = (wordCounts[token] ?? 0) + 1;
+        totalTokens++;
+      });
+    });
+
+    const sortedWords = Object.entries(wordCounts)
+      .sort(([, a], [, b]) => b - a)
+      .map(([word, count], index) => ({
+        word,
+        count,
+        rank: index + 1,
+      }));
+
+    return {
+      sortedWords,
+      totalTokens,
+      uniqueTypes: sortedWords.length,
+      ttr: totalTokens > 0 ? sortedWords.length / totalTokens : 0,
+    };
+  }, [lang.corpus]);
+
+  const maxFreq = analysis.sortedWords[0]?.count ?? 0;
+  const chartHeight = 160;
+  const chartWidth = 500;
+
   const stats = [
     {
       num: def.phonology.inventory.consonants.length,
@@ -37,7 +75,7 @@ export function Dashboard({
     {
       num: def.lexicon.length,
       label: "Lexical entries",
-      sub: `${Math.round((def.lexicon.length / 500) * 100)}% of target`,
+      sub: `${Math.round((def.lexicon.length / 1500) * 100)}% of total capacity`,
     },
     {
       num: def.corpus.length,
@@ -255,6 +293,78 @@ export function Dashboard({
                     ))}
                   </div>
                 )}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Linguistic Analysis */}
+        <div className="panel mt24 fade-up-3">
+          <div className="panel-head">
+            <span className="panel-title">Linguistic Analysis (Zipfian Distribution)</span>
+          </div>
+          <div className="panel-body">
+            {lang.corpus.length === 0 ? (
+              <div className="empty-state" style={{ padding: 40 }}>
+                <span className="muted small">Generate corpus samples to see linguistic distribution and frequency analysis.</span>
+              </div>
+            ) : (
+              <div style={{ display: "flex", gap: 40, alignItems: "flex-start" }}>
+                <div style={{ flex: 1 }}>
+                  {analysis.sortedWords.length < 5 ? (
+                    <div className="empty-state" style={{ padding: 20 }}>
+                      <span className="muted small">Need more corpus data to generate distribution chart.</span>
+                    </div>
+                  ) : (
+                    <div style={{ overflowX: "auto" }}>
+                      <svg width={chartWidth} height={chartHeight} style={{ overflow: "visible", marginBottom: 20 }}>
+                        <line x1="0" y1={chartHeight} x2={chartWidth} y2={chartHeight} stroke="var(--rule-heavy)" />
+                        <line x1="0" y1="0" x2="0" y2={chartHeight} stroke="var(--rule-heavy)" />
+                        {analysis.sortedWords.slice(0, 40).map((d, i) => {
+                          const x = (i / 40) * chartWidth;
+                          const y = chartHeight - (d.count / maxFreq) * chartHeight;
+                          return (
+                            <g key={i}>
+                              <rect 
+                                x={x} 
+                                y={y} 
+                                width={chartWidth / 50} 
+                                height={chartHeight - y} 
+                                fill="var(--ink)" 
+                                style={{ opacity: 0.2 + (0.8 * (d.count / maxFreq)) }} 
+                              />
+                            </g>
+                          );
+                        })}
+                        <path 
+                          d={`M ${analysis.sortedWords.slice(0, 40).map((_d, i) => {
+                            const x = (i / 40) * chartWidth;
+                            const idealFreq = maxFreq / (i + 1);
+                            const y = chartHeight - (idealFreq / maxFreq) * chartHeight;
+                            return `${x},${y}`;
+                          }).join(" L ")}`}
+                          fill="none"
+                          stroke="var(--error)"
+                          strokeDasharray="4 2"
+                          opacity="0.3"
+                        />
+                      </svg>
+                    </div>
+                  )}
+                </div>
+                <div style={{ width: 240, flexShrink: 0 }}>
+                  <div className="muted small mb12" style={{ letterSpacing: "0.1em", textTransform: "uppercase" }}>Common Words</div>
+                  {analysis.sortedWords.slice(0, 10).map((w, i) => (
+                    <div key={i} className="flex-between" style={{ borderBottom: "1px solid var(--rule)", padding: "4px 0" }}>
+                      <span style={{ fontFamily: "var(--mono)", fontSize: 11 }}>{w.word}</span>
+                      <span className="muted small">{w.count}x</span>
+                    </div>
+                  ))}
+                  <div className="mt12" style={{ display: "flex", gap: 12, fontSize: 9 }}>
+                    <div><span style={{ fontWeight: 600 }}>TTR:</span> {analysis.ttr.toFixed(3)}</div>
+                    <div><span style={{ fontWeight: 600 }}>Unique:</span> {analysis.uniqueTypes}</div>
+                  </div>
+                </div>
               </div>
             )}
           </div>

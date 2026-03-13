@@ -34,7 +34,7 @@ export function loadConfig(): Config {
     host: optionalEnv("HOST", "0.0.0.0"),
 
     openRouterApiKey: requireEnv("OPENROUTER_API_KEY"),
-    openRouterModel: optionalEnv("OPENROUTER_MODEL", "meta-llama/llama-3.1-8b-instruct:free"),
+    openRouterModel: optionalEnv("OPENROUTER_MODEL", "anthropic/claude-3-haiku"),
 
     redisUrl: optionalEnv("REDIS_URL", ""),   // optional — in-memory fallback
 

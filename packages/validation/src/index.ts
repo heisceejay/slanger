@@ -16,8 +16,10 @@ import type {
   LanguageDefinition, ValidationState, ValidationIssue, ValidationModule
 } from "@slanger/shared-types";
 
+export type { ValidationIssue };
+
 import {
-  validateInventory, validateOrthography, validateWordForm, validateWritingSystem
+  validateInventory, validateOrthography, validateWordForm, validateWritingSystem, tokenizeIpa
 } from "@slanger/phonology";
 import {
   validateMorphologyConfig, generateParadigmTable, validateParadigmPhonology, validateTemplaticMorphology
@@ -170,7 +172,7 @@ function runMorphologicalPass(lang: LanguageDefinition): RawIssue[] {
     try {
       const table = generateParadigmTable(entry, morph, phon);
       // Validate paradigm cell phonology using phonology module
-      const morphPhonIssues = validateParadigmPhonology(table, phon, (form, phonotactics, inventory) => {
+      const morphPhonIssues = validateParadigmPhonology(table, phon, (form: string, phonotactics: any, inventory: any) => {
         // Strip extra slashes that may result from nested IPA wrapping
         const cleanForm = form.replace(/^\/+|\/+$/g, "");
         const r = validateWordForm("/" + cleanForm + "/", phonotactics, inventory);
@@ -208,36 +210,36 @@ function runSyntacticPass(lang: LanguageDefinition): RawIssue[] {
 
 function runCrossModulePass(lang: LanguageDefinition): RawIssue[] {
   const issues: RawIssue[] = [];
-  const inventorySet = new Set([...lang.phonology.inventory.consonants, ...lang.phonology.inventory.vowels]);
+  const allPhonemes = [...lang.phonology.inventory.consonants, ...lang.phonology.inventory.vowels];
+  const inventorySet = new Set(allPhonemes);
 
   // All paradigm affixes must reference inventory phonemes
   for (const [paradigmKey, cells] of Object.entries(lang.morphology.paradigms)) {
     for (const [featureVal, affix] of Object.entries(cells)) {
+      if (!affix) continue;
       const stripped = affix.replace(/^-|-$/g, "");
-      // Tokenize and check
-      for (const char of stripped) {
-        if (/[a-zɐ-ʒ]/.test(char) && !inventorySet.has(char)) {
-          issues.push({
-            ruleId: "CROSS_001", severity: "warning", module: "cross-module",
-            message: `Paradigm "${paradigmKey}[${featureVal}]" affix "${affix}" contains /${char}/ not in inventory.`,
-            entityRef: `${paradigmKey}.${featureVal}`
-          });
-        }
+      const tokens = tokenizeIpa(stripped, allPhonemes);
+      if (tokens === null) {
+        issues.push({
+          ruleId: "CROSS_001", severity: "warning", module: "cross-module",
+          message: `Paradigm "${paradigmKey}[${featureVal}]" affix "${affix}" contains phonemes not in inventory.`,
+          entityRef: `${paradigmKey}.${featureVal}`
+        });
       }
     }
   }
 
   // Derivational affixes must use inventory phonemes
   for (const rule of lang.morphology.derivationalRules) {
+    if (!rule.affix) continue;
     const stripped = rule.affix.replace(/^-|-$/g, "");
-    for (const char of stripped) {
-      if (/[a-zɐ-ʒ]/.test(char) && !inventorySet.has(char)) {
-        issues.push({
-          ruleId: "CROSS_002", severity: "warning", module: "cross-module",
-          message: `Derivational rule "${rule.id}" affix "${rule.affix}" contains /${char}/ not in inventory.`,
-          entityRef: rule.id
-        });
-      }
+    const tokens = tokenizeIpa(stripped, allPhonemes);
+    if (tokens === null) {
+      issues.push({
+        ruleId: "CROSS_002", severity: "warning", module: "cross-module",
+        message: `Derivational rule "${rule.id}" affix "${rule.affix}" contains phonemes not in inventory.`,
+        entityRef: rule.id
+      });
     }
   }
 

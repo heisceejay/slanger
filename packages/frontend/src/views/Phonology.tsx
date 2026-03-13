@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { Language } from "../lib/api";
 import { suggestInventory, updateLanguage } from "../lib/api";
 import { syncAndRegenerateGlyphs } from "../lib/glyphs";
+import { ErrorBoundary } from "../components/ErrorBoundary";
 
 const CONSONANT_CHART = {
   places: ["Bilabial", "Labiodent.", "Dental", "Alveolar", "Post-alv.", "Palatal", "Velar", "Uvular", "Glottal"],
@@ -158,7 +159,7 @@ export function PhonologyView({ lang, onUpdated }: { lang: Language; onUpdated: 
         </div>
 
         {tab === "inventory" && (
-          <div>
+          <ErrorBoundary>
             <div className="panel mb24">
               <div className="panel-head">
                 <span className="panel-title">Consonants ({phon.inventory.consonants.length})</span>
@@ -317,93 +318,97 @@ export function PhonologyView({ lang, onUpdated }: { lang: Language; onUpdated: 
                 </div>
               </div>
             </div>
-          </div >
+          </ErrorBoundary>
         )}
 
         {
           tab === "phonotactics" && (
-            <div className="grid-2">
-              <div className="panel">
-                <div className="panel-head"><span className="panel-title">Syllable Templates</span></div>
-                <div className="panel-body">
-                  {phon.phonotactics.syllableTemplates.length === 0 ? (
-                    <div className="muted small">None defined</div>
-                  ) : (
-                    <div className="phoneme-chips">
-                      {phon.phonotactics.syllableTemplates.map(t => (
-                        <span key={t} className="tag tag-fill" style={{ fontSize: 13, fontFamily: "var(--mono)", padding: "4px 10px" }}>{t}</span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-              <div className="panel">
-                <div className="panel-head"><span className="panel-title">Clusters</span></div>
-                <div className="panel-body">
-                  <div className="muted small mb8" style={{ letterSpacing: "0.1em", textTransform: "uppercase" }}>Onset</div>
-                  <div className="phoneme-chips mb16">
-                    {phon.phonotactics.onsetClusters.map((c, i) => (
-                      <span key={i} className="tag" style={{ fontFamily: "var(--mono)", fontSize: 13 }}>{Array.isArray(c) ? c.join("") : c}</span>
-                    ))}
-                    {phon.phonotactics.onsetClusters.length === 0 && <span className="muted small">None</span>}
-                  </div>
-                  <div className="muted small mb8" style={{ letterSpacing: "0.1em", textTransform: "uppercase" }}>Coda</div>
-                  <div className="phoneme-chips">
-                    {phon.phonotactics.codaClusters.map((c, i) => (
-                      <span key={i} className="tag" style={{ fontFamily: "var(--mono)", fontSize: 13 }}>{Array.isArray(c) ? c.join("") : c}</span>
-                    ))}
-                    {phon.phonotactics.codaClusters.length === 0 && <span className="muted small">None</span>}
-                  </div>
-                </div>
-              </div>
-              <div className="panel" style={{ gridColumn: "1 / -1" }}>
-                <div className="panel-head"><span className="panel-title">Allophony Rules ({phon.phonotactics.allophonyRules.length})</span></div>
-                <div className="panel-body" style={{ padding: 0 }}>
-                  {phon.phonotactics.allophonyRules.length === 0 ? (
-                    <div style={{ padding: 16 }} className="muted small">No allophony rules defined</div>
-                  ) : (
-                    <table className="tbl tbl-mono">
-                      <thead><tr><th>Phoneme</th><th>Allophone</th><th>Environment</th><th>Position</th></tr></thead>
-                      <tbody>
-                        {phon.phonotactics.allophonyRules.map((r, i) => (
-                          <tr key={i}>
-                            <td style={{ fontSize: 16 }}>{r.phoneme}</td>
-                            <td style={{ fontSize: 16 }}>{r.allophone}</td>
-                            <td style={{ opacity: 0.7 }}>{r.environment}</td>
-                            <td>{r.position ?? "—"}</td>
-                          </tr>
+            <ErrorBoundary>
+              <div className="grid col-2">
+                <div className="panel">
+                  <div className="panel-head"><span className="panel-title">Syllable Templates</span></div>
+                  <div className="panel-body">
+                    {phon.phonotactics.syllableTemplates.length === 0 ? (
+                      <div className="muted small">None defined</div>
+                    ) : (
+                      <div className="phoneme-chips">
+                        {phon.phonotactics.syllableTemplates.map(t => (
+                          <span key={t} className="tag tag-fill" style={{ fontSize: 13, fontFamily: "var(--mono)", padding: "4px 10px" }}>{t}</span>
                         ))}
-                      </tbody>
-                    </table>
-                  )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className="panel">
+                  <div className="panel-head"><span className="panel-title">Clusters</span></div>
+                  <div className="panel-body">
+                    <div className="muted small mb8" style={{ letterSpacing: "0.1em", textTransform: "uppercase" }}>Onset</div>
+                    <div className="phoneme-chips mb16">
+                      {phon.phonotactics.onsetClusters.map((c, i) => (
+                        <span key={i} className="tag" style={{ fontFamily: "var(--mono)", fontSize: 13 }}>{Array.isArray(c) ? c.join("") : c}</span>
+                      ))}
+                      {phon.phonotactics.onsetClusters.length === 0 && <span className="muted small">None</span>}
+                    </div>
+                    <div className="muted small mb8" style={{ letterSpacing: "0.1em", textTransform: "uppercase" }}>Coda</div>
+                    <div className="phoneme-chips">
+                      {phon.phonotactics.codaClusters.map((c, i) => (
+                        <span key={i} className="tag" style={{ fontFamily: "var(--mono)", fontSize: 13 }}>{Array.isArray(c) ? c.join("") : c}</span>
+                      ))}
+                      {phon.phonotactics.codaClusters.length === 0 && <span className="muted small">None</span>}
+                    </div>
+                  </div>
+                </div>
+                <div className="panel" style={{ gridColumn: "1 / -1" }}>
+                  <div className="panel-head"><span className="panel-title">Allophony Rules ({phon.phonotactics.allophonyRules.length})</span></div>
+                  <div className="panel-body" style={{ padding: 0 }}>
+                    {phon.phonotactics.allophonyRules.length === 0 ? (
+                      <div style={{ padding: 16 }} className="muted small">No allophony rules defined</div>
+                    ) : (
+                      <table className="tbl tbl-mono">
+                        <thead><tr><th>Phoneme</th><th>Allophone</th><th>Environment</th><th>Position</th></tr></thead>
+                        <tbody>
+                          {phon.phonotactics.allophonyRules.map((r, i) => (
+                            <tr key={i}>
+                              <td style={{ fontSize: 16 }}>{r.phoneme}</td>
+                              <td style={{ fontSize: 16 }}>{r.allophone}</td>
+                              <td style={{ opacity: 0.7 }}>{r.environment}</td>
+                              <td>{r.position ?? "—"}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
+            </ErrorBoundary>
           )
         }
 
         {
           tab === "orthography" && (
-            <div className="panel">
-              <div className="panel-head"><span className="panel-title">Orthography Map ({Object.keys(phon.orthography).length} mappings)</span></div>
-              <div className="panel-body" style={{ padding: 0 }}>
-                <table className="tbl tbl-mono">
-                  <thead><tr><th>Phoneme (IPA)</th><th>Grapheme</th><th>Example</th></tr></thead>
-                  <tbody>
-                    {Object.entries(phon.orthography).map(([ph, gr]) => (
-                      <tr key={ph}>
-                        <td style={{ fontSize: 18 }}>{ph}</td>
-                        <td style={{ fontSize: 18 }}>{gr}</td>
-                        <td style={{ opacity: 0.4, fontSize: 11 }}>/{ph}/ → {gr}</td>
-                      </tr>
-                    ))}
-                    {Object.keys(phon.orthography).length === 0 && (
-                      <tr><td colSpan={3} style={{ textAlign: "center", opacity: 0.4 }}>No orthography defined</td></tr>
-                    )}
-                  </tbody>
-                </table>
+            <ErrorBoundary>
+              <div className="panel">
+                <div className="panel-head"><span className="panel-title">Orthography Map ({Object.keys(phon.orthography).length} mappings)</span></div>
+                <div className="panel-body" style={{ padding: 0 }}>
+                  <table className="tbl tbl-mono">
+                    <thead><tr><th>Phoneme (IPA)</th><th>Grapheme</th><th>Example</th></tr></thead>
+                    <tbody>
+                      {Object.entries(phon.orthography).map(([ph, gr]) => (
+                        <tr key={ph}>
+                          <td style={{ fontSize: 18 }}>{ph}</td>
+                          <td style={{ fontSize: 18 }}>{gr}</td>
+                          <td style={{ opacity: 0.4, fontSize: 11 }}>/{ph}/ → {gr}</td>
+                        </tr>
+                      ))}
+                      {Object.keys(phon.orthography).length === 0 && (
+                        <tr><td colSpan={3} style={{ textAlign: "center", opacity: 0.4 }}>No orthography defined</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
-            </div>
+            </ErrorBoundary>
           )
         }
 

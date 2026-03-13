@@ -1,14 +1,16 @@
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef, useEffect, lazy, Suspense } from "react";
 import type { Language } from "./lib/api";
 import { listLanguages, deleteLanguage } from "./lib/api";
 import { exportPdf, exportJson } from "./lib/export-pdf";
 import { Dashboard } from "./views/Dashboard";
-import { PhonologyView } from "./views/Phonology";
-import { MorphologyView } from "./views/Morphology";
-import { SyntaxView } from "./views/Syntax";
-import { LexiconView } from "./views/Lexicon";
-import { CorpusView } from "./views/Corpus";
 import { SettingsView } from "./views/Settings";
+import { ErrorBoundary } from "./components/ErrorBoundary";
+
+const PhonologyView = lazy(() => import("./views/Phonology").then(m => ({ default: m.PhonologyView })));
+const MorphologyView = lazy(() => import("./views/Morphology").then(m => ({ default: m.MorphologyView })));
+const SyntaxView = lazy(() => import("./views/Syntax").then(m => ({ default: m.SyntaxView })));
+const LexiconView = lazy(() => import("./views/Lexicon").then(m => ({ default: m.LexiconView })));
+const CorpusView = lazy(() => import("./views/Corpus").then(m => ({ default: m.CorpusView })));
 
 export type View =
   | "dashboard" | "phonology" | "morphology" | "syntax"
@@ -248,14 +250,16 @@ export default function App() {
             }}
           />
         ) : activeLang ? (
-          <>
-            {view === "dashboard" && <Dashboard lang={activeLang} onRefresh={reload} onNavigate={setView} />}
-            {view === "phonology" && <PhonologyView lang={activeLang} onUpdated={refreshLang} />}
-            {view === "morphology" && <MorphologyView lang={activeLang} onUpdated={refreshLang} />}
-            {view === "syntax" && <SyntaxView lang={activeLang} onUpdated={refreshLang} />}
-            {view === "lexicon" && <LexiconView lang={activeLang} onUpdated={refreshLang} />}
-            {view === "corpus" && <CorpusView lang={activeLang} onUpdated={refreshLang} />}
-          </>
+          <ErrorBoundary>
+            <Suspense fallback={<div style={{ padding: 24, opacity: 0.5, fontStyle: "italic" }}>Loading...</div>}>
+              {view === "dashboard" && <Dashboard lang={activeLang} onRefresh={reload} onNavigate={setView} />}
+              {view === "phonology" && <PhonologyView lang={activeLang} onUpdated={refreshLang} />}
+              {view === "morphology" && <MorphologyView lang={activeLang} onUpdated={refreshLang} />}
+              {view === "syntax" && <SyntaxView lang={activeLang} onUpdated={refreshLang} />}
+              {view === "lexicon" && <LexiconView lang={activeLang} onUpdated={refreshLang} onNavigate={setView} />}
+              {view === "corpus" && <CorpusView lang={activeLang} onUpdated={refreshLang} onNavigate={setView} />}
+            </Suspense>
+          </ErrorBoundary>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", gap: 12 }}>
             <div style={{ fontFamily: "var(--serif)", fontStyle: "italic", fontSize: 48, opacity: 0.1 }}>∴</div>

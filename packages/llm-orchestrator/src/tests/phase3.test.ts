@@ -556,6 +556,7 @@ await test("All MAX_ATTEMPTS exhausted → operation throws LLMOperationError", 
     }, SKELETON_LANG);
   } catch (err: unknown) {
     threw = true;
+    console.log("Caught Error:", err);
     const e = err as { retryReasons?: unknown[] };
     ok(e.retryReasons, "Expected LLMOperationError with retryReasons");
   }
@@ -598,6 +599,7 @@ await test("Validation-failing response is rejected and retried", async () => {
   }, SKELETON_LANG);
 
   eq(result.attempt, MAX_ATTEMPTS, `Expected to succeed on attempt ${MAX_ATTEMPTS}`);
+  console.log("Validation Result:", result.validation);
   ok(result.validation.valid);
   resetFetch();
 });

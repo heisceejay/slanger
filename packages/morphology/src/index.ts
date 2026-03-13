@@ -180,29 +180,41 @@ export function validateMorphologyConfig(
   }
 
   // Validate paradigm affixes use only inventory phonemes
+  const allPhonemes = [...phonology.inventory.consonants, ...phonology.inventory.vowels];
   for (const [paradigmKey, cells] of Object.entries(config.paradigms)) {
-    for (const [featureVal, affix] of Object.entries(cells)) {
+    for (const [featureVal, affix] of Object.entries(cells as Record<string, string>)) {
+      if (!affix) continue;
       const strippedAffix = affix.replace(/^-|-$/g, "");
-      for (const char of strippedAffix) {
-        // Simple check: single chars that look like IPA
-        if (char.length === 1 && /[a-zɐɑɒæɓɔɕɖɗɘɛɜɝɞɟɠɡɢɣɤɥɦɧɨɩɪɫɬɭɮɯɰɱɲɳɴɵɶɷɸɹɺɻɼɽɾɿʀʁʂʃʄʅʆʇʈʉʊʋʌʍʎʏʐʑʒʓ]/.test(char)) {
-          if (!inventorySet.has(char)) {
-            issues.push({
-              ruleId: "MORPH_002", severity: "warning",
-              message: `Paradigm "${paradigmKey}[${featureVal}]": affix "${affix}" contains phoneme /${char}/ not in inventory.`,
-              entityRef: `${paradigmKey}.${featureVal}`
-            });
-          }
-        }
+      const tokens = tokenizeIpa(strippedAffix, allPhonemes);
+      if (tokens === null) {
+        issues.push({
+          ruleId: "MORPH_002", severity: "error",
+          message: `Paradigm "${paradigmKey}[${featureVal}]": affix "${affix}" contains phonemes not in inventory.`,
+          entityRef: `${paradigmKey}.${featureVal}`
+        });
       }
     }
   }
 
-  // Validate derivational rule affix types
+  // Validate derivational rule affix types and unique ids
+  const drIds = new Set<string>();
   for (const rule of config.derivationalRules) {
     if (!rule.id) issues.push({ ruleId: "MORPH_010", severity: "error", message: "Derivational rule missing id.", entityRef: rule.label });
+    else {
+      if (drIds.has(rule.id)) issues.push({ ruleId: "MORPH_012", severity: "error", message: `Duplicate derivational rule id: ${rule.id}.`, entityRef: rule.id });
+      drIds.add(rule.id);
+    }
     if (!["prefix", "suffix", "circumfix", "infix"].includes(rule.affixType)) {
       issues.push({ ruleId: "MORPH_011", severity: "error", message: `Unknown affix type: ${rule.affixType}.`, entityRef: rule.id });
+    }
+  }
+
+  const arIds = new Set<string>();
+  for (const rule of config.alternationRules) {
+    if (!rule.id) issues.push({ ruleId: "MORPH_020", severity: "error", message: "Alternation rule missing id.", entityRef: rule.trigger });
+    else {
+      if (arIds.has(rule.id)) issues.push({ ruleId: "MORPH_022", severity: "error", message: `Duplicate alternation rule id: ${rule.id}.`, entityRef: rule.id });
+      arIds.add(rule.id);
     }
   }
 

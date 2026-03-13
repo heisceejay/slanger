@@ -43,13 +43,16 @@ export async function runAutonomousPipeline(
   // ── Build the initial skeleton language ─────────────────────────────────────
   const now = new Date().toISOString();
   let language: LanguageDefinition = buildSkeleton(req, now);
+  let activeStep = "phonology";
 
   try {
     // ── Step 1: Phonology ──────────────────────────────────────────────────────
+    activeStep = "phonology";
     onEvent({ type: "pipeline_progress", step: 1, totalSteps: TOTAL_STEPS, stepName: "Designing phoneme inventory" });
 
     const phonResult = await suggestPhonemeInventory({
       languageId: language.meta.id,
+      ...(req.requestId ? { requestId: req.requestId } : {}),
       naturalismScore: req.naturalismScore,
       preset: req.preset,
 
@@ -76,6 +79,7 @@ export async function runAutonomousPipeline(
     }
 
     // ── Step 2: Morphology ─────────────────────────────────────────────────────
+    activeStep = "morphology";
     onEvent({ type: "pipeline_progress", step: 2, totalSteps: TOTAL_STEPS, stepName: "Building morphological paradigms" });
 
     // Derive target paradigms and categories from complexity/naturalism heuristics
@@ -84,6 +88,7 @@ export async function runAutonomousPipeline(
 
     const morphResult = await fillParadigmGaps({
       languageId: language.meta.id,
+      ...(req.requestId ? { requestId: req.requestId } : {}),
       morphology: {
         ...language.morphology,
         categories: morphCategories,
@@ -100,6 +105,7 @@ export async function runAutonomousPipeline(
     await sleep(req.interCallDelayMs ?? INTER_CALL_DELAY_MS);
 
     // ── Step 3: Lexicon (batched) ──────────────────────────────────────────────
+    activeStep = "lexicon";
     onEvent({ type: "pipeline_progress", step: 3, totalSteps: TOTAL_STEPS, stepName: `Generating vocabulary (target: ${TARGET_LEXICON_SIZE} words)` });
 
     let lexiconDone = false;
@@ -122,6 +128,7 @@ export async function runAutonomousPipeline(
 
       const lexResult = await generateLexicon({
         languageId: language.meta.id,
+        ...(req.requestId ? { requestId: req.requestId } : {}),
         phonology: language.phonology,
         morphology: language.morphology,
         targetSlots: batchSlots,
@@ -151,10 +158,12 @@ export async function runAutonomousPipeline(
       corpusRan = true;
       // Rate-limit pause before corpus generation
       await sleep(req.interCallDelayMs ?? INTER_CALL_DELAY_MS);
+      activeStep = "corpus";
       onEvent({ type: "pipeline_progress", step: 4, totalSteps: TOTAL_STEPS, stepName: "Generating corpus samples" });
 
       const corpusResult = await generateCorpus({
         languageId: language.meta.id,
+        ...(req.requestId ? { requestId: req.requestId } : {}),
         language,
         count: 5,
         registers: ["informal", "formal", "narrative"],
@@ -173,12 +182,18 @@ export async function runAutonomousPipeline(
     await sleep(req.interCallDelayMs ?? INTER_CALL_DELAY_MS);
 
     // ── Step 5: Consistency check ──────────────────────────────────────────────
+    activeStep = "consistency";
     onEvent({ type: "pipeline_progress", step: 5, totalSteps: TOTAL_STEPS, stepName: "Running linguistic consistency audit" });
 
-    const consistencyResult = await checkConsistency({ languageId: language.meta.id, language });
+    const consistencyResult = await checkConsistency({ 
+      languageId: language.meta.id, 
+      ...(req.requestId ? { requestId: req.requestId } : {}),
+      language 
+    });
     onEvent({ type: "operation_complete", result: consistencyResult });
 
     // ── Final validation ───────────────────────────────────────────────────────
+    activeStep = "validation";
     const finalValidation = validate(language);
     language = {
       ...language,
@@ -207,7 +222,7 @@ export async function runAutonomousPipeline(
     };
   } catch (err) {
     const message = err instanceof Error ? err.message : JSON.stringify(err);
-    onEvent({ type: "pipeline_error", step: "unknown", message });
+    onEvent({ type: "pipeline_error", step: activeStep, message });
     throw err;
   }
 }

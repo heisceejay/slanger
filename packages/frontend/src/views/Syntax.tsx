@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from "react";
 import type { Language } from "../lib/api";
 import { updateLanguage } from "../lib/api";
-import type { SyntaxConfig, PhraseStructureSlot } from "@slanger/shared-types";
+import type { SyntaxConfig, PhraseStructureSlot, AlignmentSystem } from "@slanger/shared-types";
 
 // ... existing constants ...
 const WORD_ORDERS = ["SOV", "SVO", "VSO", "VOS", "OVS", "OSV", "free"] as const;
@@ -138,13 +138,13 @@ export function SyntaxView({
 
   const toggleClauseType = (ct: string) => {
     const current = syn.clauseTypes.slice();
-    const idx = current.indexOf(ct);
+    const idx = current.indexOf(ct as typeof CLAUSE_TYPE_OPTIONS[number]);
     if (idx >= 0) {
       if (current.length <= 1) return;
       current.splice(idx, 1);
     } else {
-      current.push(ct);
-      current.sort((a, b) => CLAUSE_TYPE_OPTIONS.indexOf(a as typeof CLAUSE_TYPE_OPTIONS[number]) - CLAUSE_TYPE_OPTIONS.indexOf(b as typeof CLAUSE_TYPE_OPTIONS[number]));
+      current.push(ct as typeof CLAUSE_TYPE_OPTIONS[number]);
+      current.sort((a, b) => CLAUSE_TYPE_OPTIONS.indexOf(a) - CLAUSE_TYPE_OPTIONS.indexOf(b));
     }
     handleSyntaxChange({ clauseTypes: current });
   };
@@ -242,7 +242,7 @@ export function SyntaxView({
                 <div className="panel-body">
                   <select
                     value={syn.alignment}
-                    onChange={(e) => handleSyntaxChange({ alignment: e.target.value })}
+                    onChange={(e) => handleSyntaxChange({ alignment: e.target.value as AlignmentSystem })}
                     style={{
                       width: "100%",
                       padding: "10px 12px",
@@ -307,7 +307,7 @@ export function SyntaxView({
                     <label style={{ fontSize: 9, textTransform: "uppercase", letterSpacing: "0.1em", opacity: 0.5 }}>Headedness</label>
                     <select
                       value={syn.headedness}
-                      onChange={(e) => handleSyntaxChange({ headedness: e.target.value })}
+                      onChange={(e) => handleSyntaxChange({ headedness: e.target.value as SyntaxConfig["headedness"] })}
                       style={{
                         width: "100%",
                         padding: "10px 12px",

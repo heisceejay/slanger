@@ -15,7 +15,7 @@ import { validate } from "@slanger/validation";
 import type { ValidationResult } from "@slanger/validation";
 import { structuredRequest, streamingRequest } from "./client.js";
 import { getCache } from "./cache.js";
-import { MAX_ATTEMPTS } from "./retry.js";
+import { MAX_ATTEMPTS, withValidationRetry } from "./retry.js";
 import { pruneLanguageForOp } from "./prune.js";
 import type {
   LLMOperationResult, LLMOperationError, StreamEvent,
@@ -59,52 +59,44 @@ export async function suggestPhonemeInventory(
     };
   }
 
-  const retryReasons: string[][] = [];
-
-  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-    const previousErrors = retryReasons.length > 0 ? retryReasons[retryReasons.length - 1] : undefined;
-
-    const userMessage = SuggestInventoryPrompt.buildUserMessage(req, previousErrors);
-
-    const raw = await structuredRequest({
-      operation: "suggest_phoneme_inventory",
-      systemPrompt: SuggestInventoryPrompt.buildSystemPrompt(),
-      userMessage,
-      expectJson: true,
-      maxTokens: 3000,
-    });
-
-    let parsed: SuggestInventoryResponse;
-    try {
-      parsed = SuggestInventoryPrompt.parseResponse(raw);
-    } catch (parseErr) {
-      retryReasons.push([`Parse error: ${parseErr instanceof Error ? parseErr.message : String(parseErr)}`]);
-      if (attempt === MAX_ATTEMPTS) throw buildOperationError("suggest_phoneme_inventory", attempt, retryReasons, start);
-      continue;
-    }
-
-    // Validate by applying to language
-    const candidate: LanguageDefinition = { ...baseLanguage, phonology: parsed.phonology };
-    const validation = validate(candidate);
-
-    if (validation.valid || validation.errors.filter(e => e.module === "phonology").length === 0) {
-      const cacheKey = await cache.set("suggest_phoneme_inventory", req, parsed);
-      return {
+  const { result: parsed, validation, attempt } = await withValidationRetry({
+    operation: "suggest_phoneme_inventory",
+    request: req,
+    baseLanguage,
+    callLLM: async (currentReq, previousErrors) => {
+      const userMessage = SuggestInventoryPrompt.buildUserMessage(currentReq, previousErrors);
+      const raw = await structuredRequest({
         operation: "suggest_phoneme_inventory",
-        attempt,
-        rawResponse: raw,
-        data: parsed,
-        validation,
-        durationMs: Date.now() - start,
-        fromCache: false,
-        cacheKey,
-      };
+        ...(currentReq.requestId ? { requestId: currentReq.requestId } : {}),
+        systemPrompt: SuggestInventoryPrompt.buildSystemPrompt(),
+        userMessage,
+        expectJson: true,
+        maxTokens: 3000,
+      });
+      return { raw, parsed: SuggestInventoryPrompt.parseResponse(raw) };
+    },
+    applyToLanguage: (response, base) => ({ ...base, phonology: response.parsed.phonology }),
+    validate: (lang) => {
+      const v = validate(lang);
+      // Only fail validation if phonology-specific errors exist
+      if (v.valid || v.errors.filter(e => e.module === "phonology").length === 0) {
+        return { ...v, valid: true };
+      }
+      return v;
     }
+  });
 
-    retryReasons.push(validation.errors.map(e => `[${e.module} ${e.ruleId}] ${e.message}`));
-  }
-
-  throw buildOperationError("suggest_phoneme_inventory", MAX_ATTEMPTS, retryReasons, start);
+  const cacheKey = await cache.set("suggest_phoneme_inventory", req, parsed.parsed);
+  return {
+    operation: "suggest_phoneme_inventory",
+    attempt,
+    rawResponse: parsed.raw,
+    data: parsed.parsed,
+    validation,
+    durationMs: Date.now() - start,
+    fromCache: false,
+    cacheKey,
+  };
 }
 
 
@@ -126,42 +118,76 @@ export async function fillParadigmGaps(
     };
   }
 
-  const retryReasons: string[][] = [];
+  const { result: parsed, validation, attempt } = await withValidationRetry({
+    operation: "fill_paradigm_gaps",
+    request: req,
+    baseLanguage,
+    callLLM: async (currentReq, previousErrors) => {
+      const prunedLang = pruneLanguageForOp(baseLanguage, "fill_paradigm_gaps");
+      const raw = await structuredRequest({
+        operation: "fill_paradigm_gaps",
+        ...(currentReq.requestId ? { requestId: currentReq.requestId } : {}),
+        systemPrompt: FillParadigmsPrompt.buildSystemPrompt(),
+        userMessage: FillParadigmsPrompt.buildUserMessage(currentReq, prunedLang, previousErrors),
+        expectJson: true,
+        maxTokens: 4000,
+      });
+      return { raw, parsed: FillParadigmsPrompt.parseResponse(raw) };
+    },
+    applyToLanguage: (response, base) => {
+      if (req.mode === "replace") {
+        return { ...base, morphology: response.parsed.morphology };
+      }
+      
+      // AUGMENT mode: Merge
+      const m = response.parsed.morphology;
+      
+      // Deep merge categories
+      const categories: any = { ...base.morphology.categories };
+      for (const [pos, cats] of Object.entries(m.categories)) {
+        categories[pos] = Array.from(new Set([...(categories[pos] || []), ...(cats as string[])]));
+      }
 
-  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-    const previousErrors = retryReasons.length > 0 ? retryReasons[retryReasons.length - 1] : undefined;
-    const prunedLang = pruneLanguageForOp(baseLanguage, "fill_paradigm_gaps");
-    const raw = await structuredRequest({
-      operation: "fill_paradigm_gaps",
-      systemPrompt: FillParadigmsPrompt.buildSystemPrompt(),
-      userMessage: FillParadigmsPrompt.buildUserMessage(req, prunedLang, previousErrors),
-      expectJson: true,
-      maxTokens: 4000,
-    });
-
-    let parsed: FillParadigmGapsResponse;
-    try { parsed = FillParadigmsPrompt.parseResponse(raw); }
-    catch (e) {
-      retryReasons.push([`Parse error: ${e instanceof Error ? e.message : String(e)}`]);
-      if (attempt === MAX_ATTEMPTS) throw buildOperationError("fill_paradigm_gaps", attempt, retryReasons, start);
-      continue;
-    }
-
-    const candidate: LanguageDefinition = { ...baseLanguage, morphology: parsed.morphology };
-    const validation = validate(candidate);
-
-    if (validation.errors.filter(e => e.module === "morphology").length === 0) {
-      const cacheKey = await cache.set("fill_paradigm_gaps", req, parsed);
-      return {
-        operation: "fill_paradigm_gaps", attempt, rawResponse: raw, data: parsed,
-        validation, durationMs: Date.now() - start, fromCache: false, cacheKey
+      // Merge rules by ID (new overwrites old if same ID)
+      const mergeRules = <T extends { id: string }>(base: T[], next: T[]): T[] => {
+        const map = new Map<string, T>();
+        base.forEach(r => map.set(r.id, r));
+        next.forEach(r => map.set(r.id, r));
+        return Array.from(map.values());
       };
+
+      return {
+        ...base,
+        morphology: {
+          ...base.morphology,
+          categories,
+          paradigms: { ...base.morphology.paradigms, ...m.paradigms },
+          morphemeOrder: Array.from(new Set([...base.morphology.morphemeOrder, ...m.morphemeOrder])),
+          derivationalRules: mergeRules(base.morphology.derivationalRules, m.derivationalRules),
+          alternationRules: mergeRules(base.morphology.alternationRules, m.alternationRules),
+        }
+      };
+    },
+    validate: (lang) => {
+      const v = validate(lang);
+      // Only block on errors the morphologist AI can actually resolve.
+      // Unrelated errors (like CROSS_010: Incomplete Orthography) should NOT block morphology generation.
+      const relevantErrors = v.errors.filter(e => 
+        e.module === "morphology" || 
+        (e.module === "cross-module" && e.ruleId !== "CROSS_010")
+      );
+      if (relevantErrors.length === 0) {
+        return { ...v, valid: true };
+      }
+      return { ...v, valid: false, errors: relevantErrors };
     }
+  });
 
-    retryReasons.push(validation.errors.map(e => `[${e.module} ${e.ruleId}] ${e.message}`));
-  }
-
-  throw buildOperationError("fill_paradigm_gaps", MAX_ATTEMPTS, retryReasons, start);
+  const cacheKey = await cache.set("fill_paradigm_gaps", req, parsed.parsed);
+  return {
+    operation: "fill_paradigm_gaps", attempt, rawResponse: parsed.raw, data: parsed.parsed,
+    validation, durationMs: Date.now() - start, fromCache: false, cacheKey
+  };
 }
 
 // ─── Op 3: generate_lexicon ──────────────────────────────────────────────────
@@ -188,62 +214,59 @@ export async function generateLexicon(
   }
 
   const startId = baseLanguage.lexicon.length + 1;
-  const retryReasons: string[][] = [];
-
-  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-    const previousErrors = retryReasons.length > 0 ? retryReasons[retryReasons.length - 1] : undefined;
-    const raw = await structuredRequest({
-      operation: "generate_lexicon",
-      systemPrompt: GenerateLexiconPrompt.buildSystemPrompt(baseLanguage.phonology.inventory),
-      userMessage: GenerateLexiconPrompt.buildUserMessage(req, prunedLang, previousErrors),
-      expectJson: true,
-      maxTokens: 4000,
-    });
-
-    let parsed: GenerateLexiconResponse;
-    try {
-      parsed = GenerateLexiconPrompt.parseResponse(
-        raw,
-        startId,
-        {
-          consonants: baseLanguage.phonology.inventory.consonants,
-          vowels: baseLanguage.phonology.inventory.vowels
-        },
-        baseLanguage.phonology.phonotactics
-      );
-    }
-    catch (e) {
-      retryReasons.push([`Parse error: ${e instanceof Error ? e.message : String(e)}`]);
-      if (attempt === MAX_ATTEMPTS) throw buildOperationError("generate_lexicon", attempt, retryReasons, start);
-      continue;
-    }
-
-    // Validate by adding entries to language and running full validation
-    const candidate: LanguageDefinition = {
-      ...baseLanguage,
-      lexicon: [...baseLanguage.lexicon, ...parsed.entries],
-    };
-    const validation = validate(candidate);
-
-    // Filter for errors that are likely caused by the newly generated entries
-    const relevantErrors = validation.errors.filter(e => {
-      const isRelevantModule = e.module === "phonology" || e.module === "morphology" || e.module === "cross-module";
-      const referencesNewEntry = parsed.entries.some(entry => e.entityRef?.startsWith(entry.id));
-      return isRelevantModule && referencesNewEntry;
-    });
-
-    if (relevantErrors.length === 0) {
-      const cacheKey = await cache.set("generate_lexicon", req, parsed);
-      return {
-        operation: "generate_lexicon", attempt, rawResponse: raw, data: parsed,
-        validation, durationMs: Date.now() - start, fromCache: false, cacheKey
+  const { result: parsed, validation, attempt } = await withValidationRetry({
+    operation: "generate_lexicon",
+    request: req,
+    baseLanguage,
+    callLLM: async (currentReq, previousErrors) => {
+      const raw = await structuredRequest({
+        operation: "generate_lexicon",
+        ...(currentReq.requestId ? { requestId: currentReq.requestId } : {}),
+        systemPrompt: GenerateLexiconPrompt.buildSystemPrompt(baseLanguage.phonology.inventory),
+        userMessage: GenerateLexiconPrompt.buildUserMessage(currentReq, prunedLang, previousErrors),
+        expectJson: true,
+        maxTokens: 4000,
+      });
+      return { 
+        raw, 
+        parsed: GenerateLexiconPrompt.parseResponse(
+          raw,
+          startId,
+          {
+            consonants: baseLanguage.phonology.inventory.consonants,
+            vowels: baseLanguage.phonology.inventory.vowels
+          },
+          baseLanguage.phonology.phonotactics
+        ) 
       };
+    },
+    applyToLanguage: (response, base) => ({
+      ...base,
+      lexicon: [...base.lexicon, ...response.parsed.entries],
+    }),
+    validate: (lang) => {
+      const v = validate(lang);
+      // Filter for errors that are likely caused by the newly generated entries
+      const relevantErrors = v.errors.filter(e => {
+        const isRelevantModule = e.module === "phonology" || e.module === "morphology" || e.module === "cross-module";
+        // To find which entries are new we check entries that are in lang.lexicon but not baseLanguage.lexicon. Since new entries are appended we can just slice.
+        const newEntries = lang.lexicon.slice(baseLanguage.lexicon.length);
+        const referencesNewEntry = newEntries.some(entry => e.entityRef?.startsWith(entry.id));
+        return isRelevantModule && referencesNewEntry;
+      });
+
+      if (relevantErrors.length === 0) {
+        return { ...v, valid: true };
+      }
+      return { ...v, valid: false, errors: relevantErrors };
     }
+  });
 
-    retryReasons.push(relevantErrors.map(e => `[${e.module} ${e.ruleId}] ${e.message}`));
-  }
-
-  throw buildOperationError("generate_lexicon", MAX_ATTEMPTS, retryReasons, start);
+  const cacheKey = await cache.set("generate_lexicon", req, parsed.parsed);
+  return {
+    operation: "generate_lexicon", attempt, rawResponse: parsed.raw, data: parsed.parsed,
+    validation, durationMs: Date.now() - start, fromCache: false, cacheKey
+  };
 }
 
 // ─── Op 4: generate_corpus ───────────────────────────────────────────────────
@@ -277,6 +300,7 @@ export async function generateCorpus(
   if (onEvent) {
     raw = await streamingRequest({
       operation: "generate_corpus",
+      ...(req.requestId ? { requestId: req.requestId } : {}),
       systemPrompt: CORPUS_SYSTEM_PROMPT,
       userMessage: buildCorpusUserMessage(prunedReq),
       onEvent,
@@ -284,6 +308,7 @@ export async function generateCorpus(
   } else {
     raw = await structuredRequest({
       operation: "generate_corpus",
+      ...(req.requestId ? { requestId: req.requestId } : {}),
       systemPrompt: `${CORPUS_SYSTEM_PROMPT}\n\nRespond with ONLY valid JSON.`,
       userMessage: buildCorpusUserMessage(prunedReq),
       expectJson: true,
@@ -339,6 +364,7 @@ export async function explainRule(
   const prunedReq: ExplainRuleRequest = { ...req, language: prunedLang };
   const raw = await structuredRequest({
     operation: "explain_rule",
+    ...(req.requestId ? { requestId: req.requestId } : {}),
     systemPrompt: EXPLAIN_SYSTEM_PROMPT,
     userMessage: buildExplainUserMessage(prunedReq),
     expectJson: true,
@@ -379,6 +405,7 @@ export async function checkConsistency(
   const prunedReq: CheckConsistencyRequest = { ...req, language: prunedLang };
   const raw = await structuredRequest({
     operation: "check_consistency",
+    ...(req.requestId ? { requestId: req.requestId } : {}),
     systemPrompt: CONSISTENCY_SYSTEM_PROMPT,
     userMessage: buildConsistencyUserMessage(prunedReq, prunedLang),
     expectJson: true,

@@ -15,6 +15,7 @@
 import type { GenerateLexiconRequest, GenerateLexiconResponse } from "../types.js";
 import type { LexicalEntry, PartOfSpeech, LanguageDefinition, Phonotactics } from "@slanger/shared-types";
 import { validateWordForm } from "@slanger/phonology";
+import { parseJson } from "../client.js";
 
 export function buildSystemPrompt(inventory?: { consonants: string[], vowels: string[] }): string {
   const samples = inventory ? pickSampleRoots(inventory, 2) : ["CVC", "CV.CV"];
@@ -229,7 +230,7 @@ IDs: lex_0001, lex_0002, etc. Phonemes only from: ${allowedOnly}. Templates: ${t
 }
 
 export function parseResponse(raw: string, startId: number, inventory: { consonants: string[], vowels: string[] }, phonotactics: Phonotactics): GenerateLexiconResponse {
-  const parsed = JSON.parse(raw) as Partial<GenerateLexiconResponse>;
+  const parsed = parseJson<Partial<GenerateLexiconResponse>>(raw, "generate_lexicon");
 
   if (!Array.isArray(parsed.entries)) throw new Error('Response missing "entries" array');
   if (parsed.entries.length === 0) throw new Error("entries array is empty");

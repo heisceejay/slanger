@@ -90,13 +90,17 @@ export class LLMCache {
     private readonly keyPrefix = "slanger:llm:"
   ) { }
 
-  buildKeySync(operation: OperationName, request: unknown): string {
-    // Simple sync hash: djb2 on JSON string
-    const str = JSON.stringify(request);
+  buildKeySync(operation: OperationName, request: any): string {
+    const languageId = request.languageId || "global";
+    // Create a copy and strip fields that shouldn't affect cache hits
+    const { requestId, force, noCache, ...cacheableRequest } = request;
+    
+    // Simple sync hash: djb2 on JSON string of the cacheable part
+    const str = JSON.stringify(cacheableRequest);
     let h = 5381;
     for (let i = 0; i < str.length; i++) h = ((h << 5) + h) ^ str.charCodeAt(i);
     const hash = (h >>> 0).toString(16).padStart(8, "0");
-    return `${this.keyPrefix}${operation}:${hash}`;
+    return `${this.keyPrefix}${languageId}:${operation}:${hash}`;
   }
 
   async get<T>(operation: OperationName, request: unknown): Promise<{ data: T; key: string } | null> {

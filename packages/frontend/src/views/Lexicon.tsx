@@ -1,13 +1,15 @@
 import { useState, useMemo } from "react";
-import type { Language, LexicalEntry } from "../lib/api";
+import type { LanguageDefinition as Language, LexicalEntry } from "@slanger/shared-types";
 import { generateLexicon, explainRule, updateLanguage } from "../lib/api";
 
 export function LexiconView({
   lang,
   onUpdated,
+  onNavigate,
 }: {
   lang: Language;
   onUpdated: (l: Language) => void;
+  onNavigate: (v: any) => void;
 }) {
   const [search, setSearch] = useState("");
   const [posFilter, setPosFilter] = useState("all");
@@ -288,61 +290,26 @@ export function LexiconView({
                         </div>
 
                         <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
-                          <span className="tag tag-fill">{entry.pos}</span>
+                          <button 
+                            className="tag tag-fill" 
+                            style={{ cursor: "pointer", border: "none" }}
+                            onClick={() => onNavigate("morphology")}
+                          >
+                            {entry.pos}
+                          </button>
                           {entry.subcategory && (
                             <span className="tag">{entry.subcategory}</span>
-                          )}
-                          {entry.etymologyType && (
-                            <span className="tag" style={{ opacity: 0.9 }}>{entry.etymologyType}</span>
                           )}
                         </div>
 
                         {/* Etymology */}
                         <div className="mb16">
                           <div className="muted small mb8" style={{ textTransform: "uppercase", letterSpacing: "0.1em" }}>Etymology</div>
-                          <select
-                            value={entry.etymologyType ?? ""}
-                            onChange={(e) => {
-                              const v = (e.target.value || undefined) as LexicalEntry["etymologyType"];
-                              handleUpdateEntry(entry.id, {
-                                etymologyType: v,
-                                ...(v !== "derived" ? { derivedFromEntryId: undefined } : {}),
-                                ...(v !== "borrowed" ? { borrowedFrom: undefined } : {}),
-                              });
-                            }}
-                            style={{ width: "100%", padding: "6px 8px", marginBottom: 8, fontSize: 11 }}
-                          >
-                            <option value="">—</option>
-                            <option value="derived">Derived from another word</option>
-                            <option value="borrowed">Borrowed</option>
-                            <option value="reconstructed">Reconstructed</option>
-                          </select>
-                          {entry.etymologyType === "derived" && (
-                            <select
-                              value={entry.derivedFromEntryId ?? ""}
-                              onChange={(e) => handleUpdateEntry(entry.id, { derivedFromEntryId: e.target.value || undefined })}
-                              style={{ width: "100%", padding: "6px 8px", marginBottom: 8, fontSize: 11 }}
-                            >
-                              <option value="">— Select source word</option>
-                              {entries.filter((e) => e.id !== entry.id).map((e) => (
-                                <option key={e.id} value={e.id}>{e.orthographicForm} ({e.glosses[0]})</option>
-                              ))}
-                            </select>
-                          )}
-                          {entry.etymologyType === "borrowed" && (
-                            <input
-                              type="text"
-                              value={entry.borrowedFrom ?? ""}
-                              onChange={(e) => handleUpdateEntry(entry.id, { borrowedFrom: e.target.value || undefined })}
-                              placeholder="Source language or note"
-                              style={{ width: "100%", padding: "6px 8px", marginBottom: 8, fontSize: 11 }}
-                            />
-                          )}
                           <input
                             type="text"
                             value={entry.etymology ?? ""}
                             onChange={(e) => handleUpdateEntry(entry.id, { etymology: e.target.value || undefined })}
-                            placeholder="Free-form note"
+                            placeholder="Free-form note or derivation history..."
                             style={{ width: "100%", padding: "6px 8px", fontSize: 11 }}
                           />
                         </div>

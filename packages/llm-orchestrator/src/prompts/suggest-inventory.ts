@@ -16,6 +16,7 @@
 
 import type { SuggestInventoryRequest, SuggestInventoryResponse } from "../types.js";
 import type { PhonologyConfig } from "@slanger/shared-types";
+import { parseJson } from "../client.js";
 
 export function buildSystemPrompt(): string {
   return `You are an expert linguistic typologist and constructed language designer with deep knowledge of phonological systems across the world's languages.
@@ -114,8 +115,7 @@ CRITICAL CONSTRAINTS:
 }
 
 export function parseResponse(raw: string): SuggestInventoryResponse {
-  // Import parseJson inline to avoid circular deps
-  const parsed = JSON.parse(raw) as Partial<SuggestInventoryResponse>;
+  const parsed = parseJson<Partial<SuggestInventoryResponse>>(raw, "suggest_phoneme_inventory");
 
   if (!parsed.phonology) {
     throw new Error('Response missing required "phonology" field');

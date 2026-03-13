@@ -65,6 +65,7 @@ export type StreamEvent =
 
 export interface SuggestInventoryRequest {
   languageId: string;
+  requestId?: string;
   /** 0–1: how naturalistic vs exotic */
   naturalismScore: number;
   preset: "naturalistic" | "experimental";
@@ -91,11 +92,14 @@ export interface SuggestInventoryResponse {
 
 export interface FillParadigmGapsRequest {
   languageId: string;
+  requestId?: string;
   /** The current (possibly incomplete) morphology config */
   morphology: MorphologyConfig;
   phonology: PhonologyConfig;
   /** Specific paradigm keys that are empty or incomplete */
   targetParadigms: string[];
+  /** Whether to replace all data or just augment existing gaps */
+  mode?: "replace" | "augment";
 }
 
 export interface FillParadigmGapsResponse {
@@ -108,6 +112,7 @@ export interface FillParadigmGapsResponse {
 
 export interface GenerateLexiconRequest {
   languageId: string;
+  requestId?: string;
   phonology: PhonologyConfig;
   morphology: MorphologyConfig;
   /** Semantic slots that still need filling (from coverage report) */
@@ -137,6 +142,7 @@ export interface GenerateLexiconResponse {
 
 export interface GenerateCorpusRequest {
   languageId: string;
+  requestId?: string;
   language: LanguageDefinition;
   /** How many corpus samples to generate */
   count: number;
@@ -156,6 +162,7 @@ export interface GenerateCorpusResponse {
 
 export interface ExplainRuleRequest {
   languageId: string;
+  requestId?: string;
   /** Which module the rule belongs to */
   module: "phonology" | "morphology" | "syntax";
   /** Rule ID or paradigm key */
@@ -185,6 +192,7 @@ export interface ExplainRuleResponse {
 
 export interface CheckConsistencyRequest {
   languageId: string;
+  requestId?: string;
   language: LanguageDefinition;
   /** Focus areas for the consistency check */
   focusAreas?: Array<"phonology-morphology" | "morphology-syntax" | "syntax-pragmatics" | "lexicon-phonology">;
@@ -212,6 +220,7 @@ export interface LinguisticIssue {
 
 export interface AutonomousPipelineRequest {
   languageId: string;
+  requestId?: string;
   name: string;
   world?: string;
   tags: string[];

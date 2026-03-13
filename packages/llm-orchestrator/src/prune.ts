@@ -34,8 +34,10 @@ export function pruneLanguageForOp(
             break;
 
         case "fill_paradigm_gaps":
-            // Needs phonology + morphology. Lexicon/Corpus/Syntax can be pruned.
-            pruned.lexicon = [];
+            // Needs phonology + morphology. 
+            // Also needs a sample of the lexicon (synced with the 50-item validator limit)
+            // to ensure generated affixes are compatible with existing roots.
+            pruned.lexicon = pruned.lexicon.slice(0, 50);
             pruned.corpus = [];
             pruned.syntax = {
                 wordOrder: "SVO",

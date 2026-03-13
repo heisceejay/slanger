@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { Language } from "../lib/api";
-import { generateCorpus } from "../lib/api";
+import { generateCorpus, deleteCorpusSample } from "../lib/api";
 
 const REGISTER_LABELS: Record<string, string> = {
   informal: "Informal",
@@ -13,9 +13,11 @@ const REGISTER_LABELS: Record<string, string> = {
 export function CorpusView({
   lang,
   onUpdated,
+  onNavigate,
 }: {
   lang: Language;
   onUpdated: (l: Language) => void;
+  onNavigate: (v: any) => void;
 }) {
   const samples = lang.corpus;
   const lexiconSize = lang.lexicon?.length ?? 0;
@@ -42,6 +44,12 @@ export function CorpusView({
     setRegisters((prev) =>
       prev.includes(r) ? prev.filter((x) => x !== r) : [...prev, r]
     );
+  }
+
+  async function handleDelete(sampleId: string) {
+    if (!confirm("Delete this corpus sample?")) return;
+    const updated = deleteCorpusSample(lang.meta.id, sampleId);
+    if (updated) onUpdated(updated);
   }
 
   async function handleGenerate() {
@@ -167,6 +175,22 @@ export function CorpusView({
                       opacity: 0.4,
                       fontFamily: "var(--mono)",
                       letterSpacing: "0.1em",
+                      marginRight: 12,
+                      color: "var(--error)"
+                    }}
+                    onClick={() => handleDelete(s.id)}
+                  >
+                    Delete
+                  </button>
+                  <button
+                    style={{
+                      background: "none",
+                      border: "none",
+                      cursor: "pointer",
+                      fontSize: 10,
+                      opacity: 0.4,
+                      fontFamily: "var(--mono)",
+                      letterSpacing: "0.1em",
                     }}
                     onClick={() => toggleExpanded(s.id)}
                   >
@@ -204,7 +228,13 @@ export function CorpusView({
                   <div className="interlinear" style={{ borderTop: "1px solid var(--rule-heavy)", paddingTop: 16 }}>
                     {s.interlinearGloss.map((w, i) => (
                       <div key={i} className="interlinear-word-group">
-                        <div className="interlinear-orth">{w.word}</div>
+                        <div 
+                          className="interlinear-orth" 
+                          style={{ cursor: "pointer" }}
+                          onClick={() => onNavigate("lexicon")}
+                        >
+                          {w.word}
+                        </div>
                         <div className="interlinear-morph">{w.morphemes.join("-")}</div>
                         <div className="interlinear-gloss">{w.glosses.join("-")}</div>
                       </div>

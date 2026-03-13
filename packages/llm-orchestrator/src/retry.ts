@@ -13,12 +13,12 @@
  */
 
 import type { LanguageDefinition } from "@slanger/shared-types";
-import type { ValidationResult } from "@slanger/validation";
+import type { ValidationResult, ValidationIssue } from "@slanger/validation";
 import type { OperationName, LLMOperationError } from "./types.js";
 
 export const MAX_ATTEMPTS = 3;
 
-export interface AttemptContext<TReq, TRes> {
+export interface AttemptContext<TReq extends { requestId?: string }, TRes> {
   operation: OperationName;
   request: TReq;
   /** Call the LLM and return parsed response */
@@ -34,7 +34,7 @@ export interface AttemptContext<TReq, TRes> {
  * Execute an LLM operation with validation-gated retries.
  * Returns the first result that passes all validation passes.
  */
-export async function withValidationRetry<TReq, TRes>(
+export async function withValidationRetry<TReq extends { requestId?: string }, TRes>(
   ctx: AttemptContext<TReq, TRes>
 ): Promise<{ result: TRes; validation: ValidationResult; attempt: number; rawResponses: string[] }> {
   const retryReasons: string[][] = [];
@@ -47,8 +47,15 @@ export async function withValidationRetry<TReq, TRes>(
       ? retryReasons[retryReasons.length - 1]
       : undefined;
 
-    lastResult = await ctx.callLLM(ctx.request, previousErrors);
-    rawResponses.push(JSON.stringify(lastResult));
+    try {
+      lastResult = await ctx.callLLM(ctx.request, previousErrors);
+      rawResponses.push(JSON.stringify(lastResult));
+    } catch (llmErr) {
+      const msg = `LLM Call/Parse error: ${llmErr instanceof Error ? llmErr.message : String(llmErr)}`;
+      retryReasons.push([msg]);
+      if (attempt === MAX_ATTEMPTS) break;
+      continue;
+    }
 
     // Apply the LLM output to a language snapshot and validate
     let candidateLanguage: LanguageDefinition;
@@ -61,7 +68,14 @@ export async function withValidationRetry<TReq, TRes>(
       continue;
     }
 
-    lastValidation = ctx.validate(candidateLanguage);
+    try {
+      lastValidation = ctx.validate(candidateLanguage);
+    } catch (valErr) {
+      const msg = `Validator crashed: ${valErr instanceof Error ? valErr.message : String(valErr)}`;
+      retryReasons.push([msg]);
+      if (attempt === MAX_ATTEMPTS) break;
+      continue;
+    }
 
     if (lastValidation.valid) {
       return { result: lastResult, validation: lastValidation, attempt, rawResponses };
@@ -69,7 +83,7 @@ export async function withValidationRetry<TReq, TRes>(
 
     // Extract actionable error messages for the retry prompt
     const errorMessages = lastValidation.errors.map(
-      (e) => `[${e.module.toUpperCase()} ${e.ruleId}] ${e.message}${e.entityRef ? ` (ref: ${e.entityRef})` : ""}`
+      (e: ValidationIssue) => `[${e.module.toUpperCase()} ${e.ruleId}] ${e.message}${e.entityRef ? ` (ref: ${e.entityRef})` : ""}`
     );
     retryReasons.push(errorMessages);
   }
@@ -79,7 +93,7 @@ export async function withValidationRetry<TReq, TRes>(
     operation: ctx.operation,
     attempt: MAX_ATTEMPTS,
     finalError: lastValidation
-      ? `Validation failed after ${MAX_ATTEMPTS} attempts. Final errors: ${lastValidation.errors.map(e => e.message).join("; ")}`
+      ? `Validation failed after ${MAX_ATTEMPTS} attempts. Final errors: ${lastValidation.errors.map((e: ValidationIssue) => e.message).join("; ")}`
       : "All attempts exhausted without a valid response.",
     retryReasons,
     durationMs: 0,
