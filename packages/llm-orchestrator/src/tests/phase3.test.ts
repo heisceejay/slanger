@@ -517,7 +517,10 @@ await test("Network error triggers retry inside structuredRequest (2 fetch calls
     callCount++;
     if (callCount === 1) {
       // Return 429 rate limit — triggers backoff retry inside structuredRequest
-      return new Response(JSON.stringify({ error: "rate limited" }), { status: 429, headers: { "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ error: "rate limited" }), {
+        status: 429,
+        headers: { "Content-Type": "application/json", "retry-after": "0" },
+      });
     }
     return new Response(JSON.stringify({
       choices: [{ message: { content: JSON.stringify(mockPhonologyResponse()), role: "assistant" }, finish_reason: "stop" }],
@@ -690,6 +693,7 @@ await test("Pipeline emits pipeline_progress for each step", async () => {
   await runAutonomousPipeline({
     languageId: "lang_pipe02", name: "Testlang2", tags: [],
     preset: "naturalistic", naturalismScore: 0.6, complexity: 0.4,
+    interCallDelayMs: 0,
   }, (event) => {
     if (event.type === "pipeline_progress") progressEvents.push(event.step);
   });
