@@ -7,7 +7,7 @@
   "scripts": {
     "build": "tsc",
     "typecheck": "tsc --noEmit",
-    "test": "node dist/tests/phase3.test.js",
+    "test": "npm exec tsc -- -b --force && node dist/tests/phase3.test.js",
     "lint": "eslint src"
   },
   "dependencies": {
