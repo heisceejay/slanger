@@ -89,7 +89,7 @@ export const FIXTURE_KETHANI: LanguageDefinition = {
     paradigms: {
       noun_case: { nominative: "", accusative: "-em", dative: "-ol" },
       noun_number: { singular: "", plural: "-ari" },
-      verb_tense: { past: "-va", present: "-na", future: "-sa" },
+      verb_tense: { past: "-ka", present: "-na", future: "-sa" },
       verb_person_number: {
         "1sg": "-ki", "2sg": "-ti", "3sg": "-li",
         "1pl": "-kami", "2pl": "-tami", "3pl": "-lami",
@@ -202,7 +202,7 @@ export const FIXTURE_VAROSSI: LanguageDefinition = {
   },
   phonology: {
     inventory: {
-      consonants: ["b", "d", "g", "v", "z", "r", "l", "n", "m", "f", "s"],
+      consonants: ["b", "d", "g", "v", "z", "r", "l", "n", "m", "f", "s", "t"],
       vowels: ["a", "e", "i", "o", "u", "ə"],
       tones: [],
     },
@@ -220,7 +220,7 @@ export const FIXTURE_VAROSSI: LanguageDefinition = {
       ],
     },
     orthography: {
-      b: "b", d: "d", g: "g", v: "v", z: "z",
+      b: "b", d: "d", g: "g", v: "v", z: "z", t: "t",
       r: "r", l: "l", n: "n", m: "m", f: "f", s: "s",
       a: "a", e: "e", i: "i", o: "o", u: "u", ə: "ë",
     },
