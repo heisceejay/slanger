@@ -8,7 +8,7 @@
   ],
   "scripts": {
     "build": "npm run build -w @slanger/shared-types && npm run build -w @slanger/phonology && npm run build -w @slanger/morphology && npm run build -w @slanger/syntax && npm run build -w @slanger/lexicon && npm run build -w @slanger/validation && npm run build -w @slanger/llm-orchestrator && npm run build -w @slanger/api-gateway && npm run build -w @slanger/frontend",
-    "test": "npm exec tsc -- -b && npm run test --workspaces --if-present",
+    "test": "npm exec tsc -- -b --force && npm run test --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present",
     "typecheck": "npm exec tsc -- -b && npm run typecheck -w @slanger/frontend",
     "dev": "npm run dev -w packages/api-gateway",
