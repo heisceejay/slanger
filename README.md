@@ -4,7 +4,7 @@ AI-assisted constructed language (conlang) generator. Design phoneme inventories
 
 **Architecture:** Stateless API (Node 22 · Fastify · TypeScript) + React SPA (Vite). Language data lives entirely in browser `sessionStorage` and is cleared when the tab closes. No accounts, no database.
 
-**Stack:** Node 22 · TypeScript · Fastify · Vite · React 18 · **OpenRouter API** · Docker · Fly.io
+**Stack:** Node 22 · TypeScript · Fastify · Vite · React 18 · **OpenRouter API** · Docker · Railway · Vercel
 
 ---
 
@@ -23,7 +23,7 @@ slanger/
 │   ├── lexicon/            # Lexicon validation + vocabulary slots
 │   └── validation/         # Cross-module validation engine
 ├── docker/                 # Dockerfiles + nginx config
-├── fly.toml                # Fly.io deployment manifest
+├── railway.toml            # Railway deployment config
 └── .github/workflows/      # CI pipeline
 ```
 
@@ -95,42 +95,51 @@ cd packages/llm-orchestrator && npm test      # LLM operation tests (mocked, no 
 
 ## Production deployment
 
+### Railway (backend)
+
+The API gateway deploys to [Railway](https://railway.app) using the Dockerfile.
+
+1. Create a new Railway project and connect this repo
+2. Set the root directory to `/` and Railway will use `railway.toml` for config
+3. Add environment variables in the Railway dashboard:
+
+```
+OPENROUTER_API_KEY=sk-or-v1-...
+NODE_ENV=production
+PORT=3001
+HOST=0.0.0.0
+```
+
+4. Optionally add a Redis service for rate limiting and set `REDIS_URL`
+5. Deploy — Railway auto-builds from the Dockerfile
+
+### Vercel (frontend)
+
+The React SPA deploys to [Vercel](https://vercel.com) from source.
+
+1. Import the repo in Vercel
+2. Set the root directory to `packages/frontend`
+3. Vercel auto-detects Vite — no build config needed
+4. Set the `VITE_API_URL` environment variable to your Railway backend URL
+5. Deploy
+
 ### Docker Compose (self-hosted)
 
 ```bash
 # Build images
-docker compose -f docker/docker-compose.prod.yml build
+docker compose -f docker-compose.prod.yml build
 
 # Set secrets
 export OPENROUTER_API_KEY="sk-or-v1-..."
 
 # Start
-docker compose -f docker/docker-compose.prod.yml up -d
+docker compose -f docker-compose.prod.yml up -d
 ```
 
 The compose file starts:
 - `api-gateway` on port 3001
 - `frontend` (nginx serving built React app) on port 80
 - nginx reverse proxy routing `/v1/` → api-gateway
-
-### Fly.io
-
-```bash
-# First time
-flyctl launch --no-deploy
-
-# Set required secret
-flyctl secrets set OPENROUTER_API_KEY="sk-or-v1-..."
-
-# Optional: Redis-backed rate limiting
-flyctl secrets set REDIS_URL="redis://..."
-
-# Deploy
-flyctl deploy --config fly.toml
-
-# Verify
-curl https://slanger-api.fly.dev/health/ready
-```
 
 ---
 

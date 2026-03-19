@@ -1,0 +1,10 @@
+# Slanger API Gateway — Railway deployment config
+
+[build]
+  dockerfilePath = "docker/Dockerfile.api-gateway"
+
+[deploy]
+  healthcheckPath = "/health"
+  healthcheckTimeout = 10
+  restartPolicyType = "on_failure"
+  restartPolicyMaxRetries = 3
