@@ -116,7 +116,7 @@ export function createLanguage(input: {
       writingSystem: {
         type: "alphabet",
         mappings: {},
-        aesthetics: { complexity: 5, style: "rounded", strokeDensity: 5 },
+        aesthetics: { complexity: 0.5, style: "rounded", strokeDensity: 0.5 },
         glyphs: {}
       }
     },
@@ -187,7 +187,7 @@ export function importLanguageFromJson(parsed: unknown): Language {
       writingSystem: {
         type: "alphabet",
         mappings: {},
-        aesthetics: { complexity: 5, style: "rounded", strokeDensity: 5 },
+        aesthetics: { complexity: 0.5, style: "rounded", strokeDensity: 0.5 },
         glyphs: {}
       }
     },

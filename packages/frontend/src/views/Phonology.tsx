@@ -111,7 +111,7 @@ export function PhonologyView({ lang, onUpdated }: { lang: Language; onUpdated: 
           style={{
             fill: "none",
             stroke: "currentColor",
-            strokeWidth: 1 + (density ?? 0.5) * 3,
+            strokeWidth: 1 + Math.min(1, Math.max(0, density ?? 0.5)) * 3,
             strokeLinecap: "round",
             strokeLinejoin: "round",
           }}

@@ -22,7 +22,8 @@ function seededRandom(seed: string): () => number {
  */
 function generateProceduralPath(seed: string, aes: WritingSystemConfig["aesthetics"]): string {
     const rnd = seededRandom(seed);
-    const complexity = typeof aes?.complexity === "number" && !Number.isNaN(aes.complexity) ? aes.complexity : 0.5;
+    const rawComplexity = typeof aes?.complexity === "number" && !Number.isNaN(aes.complexity) ? aes.complexity : 0.5;
+    const complexity = Math.min(1, Math.max(0, rawComplexity));
     const style = aes?.style ?? "angular";
     const segments = 2 + Math.floor(complexity * 6);
     const paths: string[] = [];
