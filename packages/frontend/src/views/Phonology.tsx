@@ -105,14 +105,16 @@ export function PhonologyView({ lang, onUpdated }: { lang: Language; onUpdated: 
   function GlyphPreview({ path, density }: { path?: string, density?: number }) {
     if (!path) return <span style={{ opacity: 0.2 }}>?</span>;
     return (
-      <svg width="32" height="32" viewBox="0 0 32 32" style={{ border: "1px solid var(--rule)", borderRadius: 4, background: "var(--paper)" }}>
+      <svg width="32" height="32" viewBox="-2 -2 36 36" style={{ border: "1px solid var(--rule)", borderRadius: 4, background: "var(--paper)", overflow: "visible", color: "var(--ink)" }}>
         <path
           d={path}
-          fill="none"
-          stroke="var(--ink)"
-          strokeWidth={1 + (density ?? 0.5) * 3}
-          strokeLinecap="round"
-          strokeLinejoin="round"
+          style={{
+            fill: "none",
+            stroke: "currentColor",
+            strokeWidth: 1 + (density ?? 0.5) * 3,
+            strokeLinecap: "round",
+            strokeLinejoin: "round",
+          }}
         />
       </svg>
     );

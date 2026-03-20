@@ -327,9 +327,10 @@ export function MorphologyView({
                     style={{
                       fontFamily: "var(--mono)", fontSize: 10, letterSpacing: "0.1em",
                       padding: "4px 12px", cursor: "pointer", transition: "var(--transition)",
-                      background: morph.templatic?.enabled ? "var(--ink)" : "transparent",
-                      color: morph.templatic?.enabled ? "var(--paper)" : "var(--ink)",
-                      border: "1px solid " + (morph.templatic?.enabled ? "var(--ink)" : "var(--rule-heavy)"),
+                      background: morph.templatic?.enabled ? "var(--paper)" : "transparent",
+                      color: morph.templatic?.enabled ? "var(--ink)" : "var(--paper)",
+                      border: "1px solid " + (morph.templatic?.enabled ? "var(--paper)" : "rgba(245, 245, 240, 0.4)"),
+                      opacity: morph.templatic?.enabled ? 1 : 0.6,
                     }}
                   >
                     {morph.templatic?.enabled ? "ENABLED" : "DISABLED"}
