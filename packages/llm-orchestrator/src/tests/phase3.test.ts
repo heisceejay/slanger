@@ -29,6 +29,7 @@ import {
 import { FIXTURE_KETHANI } from "@slanger/shared-types";
 import type { LanguageDefinition } from "@slanger/shared-types";
 import type { FetchFn } from "../client.js";
+import { parseResponse as parseLexiconResponse } from "../prompts/generate-lexicon.js";
 
 // ─── Mini test runner ─────────────────────────────────────────────────────────
 
@@ -391,6 +392,37 @@ await test("Pronoun subcategory is correctly passed through", async () => {
   const pronoun = result.data.entries.find(e => e.subcategory === "personal-pronoun");
   ok(pronoun, "Expected at least one personal pronoun in batch");
   resetFetch();
+});
+
+await test("Accepts generated entries with multi-symbol IPA phonemes", async () => {
+  const phonotactics = {
+    syllableTemplates: ["CV"],
+    onsetClusters: [],
+    codaClusters: [],
+    allophonyRules: [],
+  };
+  const response = {
+    entries: [{
+      id: "lex_0001",
+      phonologicalForm: "/tʃa/",
+      orthographicForm: "cha",
+      pos: "noun",
+      glosses: ["stone"],
+      semanticFields: ["nature"],
+      derivedForms: [],
+      source: "generated",
+    }],
+    phonologicalNotes: "Uses /tʃ/ as a single consonant phoneme.",
+  };
+
+  const parsed = parseLexiconResponse(
+    JSON.stringify(response),
+    1,
+    { consonants: ["tʃ"], vowels: ["a"] },
+    phonotactics
+  );
+
+  eq(parsed.entries[0]?.phonologicalForm, "tʃa");
 });
 
 // ─── Op 4: generate_corpus ────────────────────────────────────────────────────

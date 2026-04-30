@@ -14,7 +14,7 @@
 
 import type { GenerateLexiconRequest, GenerateLexiconResponse } from "../types.js";
 import type { LexicalEntry, PartOfSpeech, LanguageDefinition, Phonotactics } from "@slanger/shared-types";
-import { validateWordForm } from "@slanger/phonology";
+import { tokenizeIpa, validateWordForm } from "@slanger/phonology";
 import { parseJson } from "../client.js";
 
 export function buildSystemPrompt(inventory?: { consonants: string[], vowels: string[] }): string {
@@ -269,12 +269,16 @@ export function parseResponse(raw: string, startId: number, inventory: { consona
     if (!entry.orthographicForm) throw new Error(`Entry ${entry.id} missing orthographicForm`);
     if (entry.glosses.length === 0) throw new Error(`Entry ${entry.id} has no glosses`);
 
-    // Strict fast-fail check for hallucinated phonemes
+    // Strict fast-fail check for hallucinated phonemes. Use the tokenizer so
+    // multi-symbol phonemes such as /tʃ/ and /dʒ/ are treated as one segment.
     // This feeds directly back into the LLM retry loop
-    const characters = Array.from(entry.phonologicalForm);
-    for (const char of characters) {
-      if (/[a-zɐ-ʒ]/.test(char) && !allowedSet.has(char)) {
-        throw new Error(`Entry ${entry.id} ("${entry.orthographicForm}") uses ILLEGAL symbol /${char}/ in /${entry.phonologicalForm}/. You MUST ONLY use the allowed inventory symbols.`);
+    const tokens = tokenizeIpa(entry.phonologicalForm, [...inventory.consonants, ...inventory.vowels]);
+    if (tokens === null) {
+      throw new Error(`Entry ${entry.id} ("${entry.orthographicForm}") uses symbols outside the allowed inventory in /${entry.phonologicalForm}/. You MUST ONLY use the allowed inventory symbols.`);
+    }
+    for (const token of tokens) {
+      if (!allowedSet.has(token)) {
+        throw new Error(`Entry ${entry.id} ("${entry.orthographicForm}") uses ILLEGAL symbol /${token}/ in /${entry.phonologicalForm}/. You MUST ONLY use the allowed inventory symbols.`);
       }
     }
 

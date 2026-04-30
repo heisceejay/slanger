@@ -49,9 +49,12 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   if (!res.ok) {
     let msg = `HTTP ${res.status}`;
     try {
-      const err = await res.json() as { errors?: { message: string }[] };
-      msg = err.errors?.[0]?.message ?? msg;
-    } catch { /* use default */ }
+      const err = await res.clone().json() as { errors?: { message: string }[]; error?: { message?: string }; message?: string };
+      msg = err.errors?.[0]?.message ?? err.error?.message ?? err.message ?? msg;
+    } catch {
+      const text = await res.text().catch(() => "");
+      if (text) msg = text;
+    }
     throw new Error(msg);
   }
   return res.json() as Promise<T>;
