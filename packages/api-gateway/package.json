@@ -18,6 +18,8 @@
     "@fastify/swagger": "^8.14.0",
     "@fastify/swagger-ui": "^3.1.0",
     "@google/genai": "^1.42.0",
+    "@slanger/lexicon": "*",
+    "@slanger/llm-orchestrator": "*",
     "@slanger/shared-types": "*",
     "dotenv": "^16.4.5",
     "fastify": "^4.26.0",

@@ -73,6 +73,15 @@ function badRequest(message: string, requestId: string, issues?: z.ZodIssue[]) {
   return { data: null, requestId, errors: [{ code: "BAD_REQUEST", message: detailedMessage }] };
 }
 
+function llmOperationError(err: { finalError?: string; retryReasons?: unknown }, requestId: string) {
+  const message = err.finalError || "LLM operation failed";
+  return {
+    data: null,
+    requestId,
+    errors: [{ code: "LLM_OPERATION_FAILED", message, details: err.retryReasons }],
+  };
+}
+
 // ─── Rate limits ──────────────────────────────────────────────────────────────
 
 const LLM_RATE = {
@@ -116,11 +125,7 @@ export async function llmRoutes(fastify: FastifyInstance): Promise<void> {
       return reply.send(ok({ language: updated, rationale: result.data.rationale, fromCache: result.fromCache }, req.id));
     } catch (err: any) {
       if (err.operation) {
-        return reply.code(400).send({
-          status: "error",
-          requestId: req.id,
-          error: { message: err.finalError || "LLM operation failed", details: err.retryReasons }
-        });
+        return reply.code(400).send(llmOperationError(err, req.id));
       }
       throw err;
     }
@@ -174,15 +179,7 @@ export async function llmRoutes(fastify: FastifyInstance): Promise<void> {
         return reply.send(ok({ language: updated, rationale: result.data.rationale, fromCache: result.fromCache }, req.id));
       } catch (err: any) {
         if (err.operation) {
-          // This is an LLMOperationError
-          return reply.code(400).send({
-            status: "error",
-            requestId: req.id,
-            error: {
-              message: err.finalError || "LLM operation failed",
-              details: err.retryReasons
-            }
-          });
+          return reply.code(400).send(llmOperationError(err, req.id));
         }
         throw err; // Let regular errors fall through to 500
       }
@@ -251,11 +248,7 @@ export async function llmRoutes(fastify: FastifyInstance): Promise<void> {
         return reply.send(ok({ language: updated, newCount: result.data.entries.length, fromCache: result.fromCache }, req.id));
       } catch (err: any) {
         if (err.operation) {
-          return reply.code(400).send({
-            status: "error",
-            requestId: req.id,
-            error: { message: err.finalError || "LLM operation failed", details: err.retryReasons }
-          });
+          return reply.code(400).send(llmOperationError(err, req.id));
         }
         throw err;
       }
@@ -297,11 +290,7 @@ export async function llmRoutes(fastify: FastifyInstance): Promise<void> {
         return reply.send(ok({ language: updated, newCount: result.data.samples.length, newWordsAdded: newEntries.length, fromCache: result.fromCache }, req.id));
       } catch (err: any) {
         if (err.operation) {
-          return reply.code(400).send({
-            status: "error",
-            requestId: req.id,
-            error: { message: err.finalError || "LLM operation failed", details: err.retryReasons }
-          });
+          return reply.code(400).send(llmOperationError(err, req.id));
         }
         throw err;
       }
@@ -336,11 +325,7 @@ export async function llmRoutes(fastify: FastifyInstance): Promise<void> {
         }, req.id));
       } catch (err: any) {
         if (err.operation) {
-          return reply.code(400).send({
-            status: "error",
-            requestId: req.id,
-            error: { message: err.finalError || "LLM operation failed", details: err.retryReasons }
-          });
+          return reply.code(400).send(llmOperationError(err, req.id));
         }
         throw err;
       }
@@ -368,11 +353,7 @@ export async function llmRoutes(fastify: FastifyInstance): Promise<void> {
       }, req.id));
     } catch (err: any) {
       if (err.operation) {
-        return reply.code(400).send({
-          status: "error",
-          requestId: req.id,
-          error: { message: err.finalError || "LLM operation failed", details: err.retryReasons }
-        });
+        return reply.code(400).send(llmOperationError(err, req.id));
       }
       throw err;
     }

@@ -46,7 +46,7 @@ npm install
 
 # 2. Configure the API gateway
 cd packages/api-gateway
-cp .env.example .env
+printf "OPENROUTER_API_KEY=sk-or-v1-...\n" > .env
 # Edit .env — set OPENROUTER_API_KEY (from OpenRouter)
 
 # 3. Start the backend (from repo root)
